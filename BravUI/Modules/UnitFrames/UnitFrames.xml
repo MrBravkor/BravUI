@@ -1,0 +1,31 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+  <Script file="Shared/AurasShared.lua"/>
+  <Script file="Shared/SimpleFrameFactory.lua"/>
+  <Script file="Shared/CastBarFactory.lua"/>
+  <Script file="Shared/DispelOverlay.lua"/>
+  <Script file="Shared/HealPredictOverlay.lua"/>
+  <!-- Player -->
+  <Script file="Player/Player.lua"/>
+  <Script file="Player/PlayerCast.lua"/>
+  <Script file="Player/PlayerAuras.lua"/>
+  <Script file="Player/PlayerDispel.lua"/>
+  <Script file="Player/PlayerHealPredict.lua"/>
+  <!-- Focus -->
+  <Script file="Player/PlayerFocus.lua"/>
+  <!-- Pet -->
+  <Script file="Player/PlayerPet.lua"/>
+  <Script file="Player/PlayerPetCast.lua"/>
+  <!-- Target -->
+  <Script file="Target/Target.lua"/>
+  <Script file="Target/TargetCast.lua"/>
+  <Script file="Target/TargetAuras.lua"/>
+  <Script file="Target/TargetOfTarget.lua"/>
+  <!-- Group -->
+  <Script file="Group/Group.lua"/>
+  <Script file="Group/GroupCast.lua"/>
+  <!-- Raid -->
+  <Script file="Raid/RaidFactory.lua"/>
+  <Script file="Raid/Raid15.lua"/>
+  <Script file="Raid/Raid25.lua"/>
+  <Script file="Raid/Raid40.lua"/>
+</Ui>

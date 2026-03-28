@@ -2,6 +2,66 @@
 
 ---
 
+## [2.0.1-alpha] — 28/03/2026
+
+Implémentation complète du module UnitFrames et refactorisation majeure.
+
+Toutes les frames sont couvertes : joueur, cible, focus, familier, cible-de-cible,
+groupe (party 1-4) et raid (15/25/40). Trois factories partagées ont été introduites
+pour éliminer ~1600 lignes de code dupliqué.
+
+### Ajouts — Shared
+
+- Factory auras (buffs/debuffs, cooldown spiral, stack count, tooltip, mover)
+- Factory frames simples HP+Power+Nom (Focus, Pet, ToT)
+- Factory cast bars avec `ComputeAndDisplay()` mutualisé
+- Overlay dispel unifié Group + Raid15/25/40
+- Overlay heal predict + absorb unifié Group + Raid15/25/40
+
+### Ajouts — Player
+
+- Frame joueur : HP, power, class power, segments, icons
+- Cast bar joueur avec icône, timer, spark
+- Buffs/debuffs joueur (2 containers indépendants)
+- Overlay dispel joueur (secret-safe)
+- Heal prediction + absorb joueur
+- Frame focus : HP, power, name, preview mode
+- Frame familier : HP, power, name
+- Cast bar familier
+
+### Ajouts — Target
+
+- Frame cible : HP, power, range check, icons
+- Cast bar cible
+- Buffs/debuffs cible (2 containers indépendants)
+- Frame cible-de-cible : HP, power, name
+
+### Ajouts — Group & Raid
+
+- Frames groupe party 1-4 : HP, power, rôle, icons, range, preview
+- Cast bars groupe (party 1-4)
+- Factory raid partagée : grille, subgroupes, labels, preview, range
+- Frames raid 15, 25 et 40 membres
+
+### Ajouts — Misc
+
+- Bouton sortie véhicule/monture (SecureActionButton, zero taint)
+- Utilitaires UI partagés (secret-safe, throttlers, color helpers, widget factories)
+- Enregistrement fonts et icons de rôle (tank, healer, dps)
+
+### Suppressions
+
+- Overlays dispel et heal predict Group/Raid individuels — remplacés par les versions unifiées
+
+### Modifications
+
+- Defaults complets pour tous les modules UnitFrames
+- Fichiers partagés déplacés dans `Shared/`
+- Focus, Pet, ToT — refactorisés via SimpleFrameFactory
+- Cast bars joueur, familier, cible — refactorisées via CastBarFactory
+
+---
+
 ## [2.0.0] — 28/03/2026
 
 Première version fonctionnelle de BravUI v2.
