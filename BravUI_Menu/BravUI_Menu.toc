@@ -1,0 +1,17 @@
+## Interface: 120001, 120005
+## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r|cFFFFD700Menu|r
+## Notes: Configuration interface for BravUI
+## Author: MrBravkor
+## Version: 2.0.0
+## Group: BravUI
+## Dependencies: BravUI_Lib, BravUI
+
+Init.lua
+Core/Init.lua
+Core/Load.lua
+Core/Widgets.lua
+Pages/General.lua
+Pages/UnitFrames.lua
+Pages/Minimap.lua
+Pages/Chat.lua
+Pages/ActionBars.lua

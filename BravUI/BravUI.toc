@@ -1,0 +1,12 @@
+## Interface: 120001, 120005
+## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r
+## Notes: Core UI replacement
+## Author: Bravkor
+## Version: 2.0.0
+## Group: BravUI
+## Dependencies: BravUI_Lib
+## SavedVariables: BravUI_DB
+
+Core/Init.lua
+Core/Load.lua
+Core/Move.lua

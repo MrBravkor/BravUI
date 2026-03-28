@@ -1,0 +1,16 @@
+## Interface: 120001, 120005
+## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r|cFFFFD700Lib|r
+## Notes: Core libraries for BravUI
+## Author: MrBravkor
+## Version: 2.0.0
+## Group: BravUI
+
+BravLib_Core/Init.lua
+BravLib_Core/Utils.lua
+BravLib_Core/Print.lua
+BravLib_Core/Compat.lua
+BravLib_Data/Storage.lua
+BravLib_Data/API.lua
+BravLib_Event/Event.lua
+BravLib_Event/Hooks.lua
+BravLib_Media/Media.lua
