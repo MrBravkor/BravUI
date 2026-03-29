@@ -2,6 +2,59 @@
 
 ---
 
+## [2.0.3-alpha] — 29/03/2026
+
+Systeme de profils complet, sans dependances externes.
+
+### Profils
+
+- Systeme complet de gestion de profils sans dependances externes
+- Creation, suppression, copie, renommage et reset de profils
+- Migration automatique depuis l'ancien format (v2.0.2 et anterieur)
+
+### 4 modes de routage
+
+- **Global** — un profil partage entre tous les personnages
+- **Par personnage** — chaque personnage possede son propre profil, cree automatiquement a la premiere connexion
+- **Par specialisation** — switch automatique de profil au changement de spec
+- **Par role** — switch automatique selon le role (Tank / Heal / DPS), sans changer entre specs du meme role
+
+### Import / Export / Partage
+
+- Export compresse (LZW) avec header versionne `BravUI:1:`
+- Import avec validation, switch automatique et reload
+- Partage in-game entre joueurs via Whisper, Groupe, Raid ou Guilde
+
+### Page menu Profils
+
+- Dropdown profil actif et copie depuis un autre profil
+- Popups dediees pour creer, supprimer, importer, exporter et partager
+- Grille de selection du mode de routage (2x2)
+- Dropdowns par spec ou par role selon le mode actif
+
+### Positions
+
+- Tous les elements UI ont desormais des positions par defaut
+- Les positions sont sauvegardees et restaurees par profil
+- Le bouton "Remise par defaut" de l'Edit Mode remet aux vraies positions d'origine
+
+### Corrections
+
+- Crash `SetPoint` sur des positions vides au chargement
+- Positions perdues apres un `/reload`
+- Page du menu qui se vidait apres un changement de profil
+- Positions ecrasees lors d'un switch de profil
+
+### Changements techniques
+
+- `BravLib.Storage` entierement refait en profile-aware — `GetDB()` retourne toujours le profil actif, transparent pour tous les modules
+- `BravLib.Serialize` — serialisation Lua maison avec parser securise (pas de `loadstring`)
+- `BravLib.Compress` — compression LZW maison
+- Auras et VehicleExit en positions absolues independantes (plus d'ancrage relatif)
+- Wizard adapte pour le systeme de profils
+
+---
+
 ## [2.0.2-alpha] — 29/03/2026
 
 Menu complet, module Minimap, systeme de deplacement avance et infrastructure core.

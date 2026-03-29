@@ -1,7 +1,7 @@
 ---@class BravUI
 BravUI = BravUI or {}
 
-BravUI.version = "2.0.2-alpha"
+BravUI.version = "2.0.3-alpha"
 BravUI.modules = {}
 
 local defaults = {
@@ -10,7 +10,13 @@ local defaults = {
         useClassColor  = true,
         hideBlizzardUI = true,
     },
-    positions  = {},
+    positions  = {
+        VehicleExit  = { x = 0,    y = -150 },
+        PlayerBuffs  = { x = 0,    y = -160 },
+        PlayerDebuffs = { x = 0,   y = -186 },
+        TargetBuffs  = { x = 0,    y = -290 },
+        TargetDebuffs = { x = 0,   y = -316 },
+    },
     minimap = {
         enabled          = true,
         point            = "TOPRIGHT",
@@ -47,6 +53,8 @@ local defaults = {
     },
     unitframes = {
         player = {
+            posX           = 0,
+            posY           = -200,
             width          = 220,
             showPower      = true,
             showClassPower = true,
@@ -92,6 +100,8 @@ local defaults = {
             },
         },
         tot = {
+            posX      = 0,
+            posY      = -285,
             width     = 180,
             showPower = true,
             height = {
@@ -106,6 +116,8 @@ local defaults = {
             text = {},
         },
         pet = {
+            posX      = -200,
+            posY      = -200,
             width     = 120,
             showPower = true,
             height = {
@@ -133,6 +145,8 @@ local defaults = {
             },
         },
         focus = {
+            posX           = 0,
+            posY           = -320,
             width          = 180,
             showPower      = true,
             height = {
@@ -147,6 +161,8 @@ local defaults = {
             text = {},
         },
         target = {
+            posX             = 0,
+            posY             = -250,
             cast = {
                 enabled   = true,
                 anchor    = "POWER_BOTTOM",

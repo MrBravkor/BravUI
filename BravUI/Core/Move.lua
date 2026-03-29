@@ -938,6 +938,11 @@ end
 -- ============================================================================
 
 function BravUI.Move.Enable(frame, name)
+  -- Lire les defaults pour ce frame
+  local def = BravLib.Storage.GetDefaults()
+  local defPos = def and def.positions and def.positions[name]
+  local defXY = { x = defPos and defPos.x or 0, y = defPos and defPos.y or 0 }
+
   -- Simple registration: saves/restores from positions DB
   Mover:Register(name, frame, function()
     local db = BravLib.Storage.GetDB()
@@ -945,7 +950,7 @@ function BravUI.Move.Enable(frame, name)
     db.positions = db.positions or {}
     db.positions[name] = db.positions[name] or {}
     return db.positions[name], "x", "y"
-  end, { x = 0, y = 0 }, { category = "divers" })
+  end, defXY, { category = "divers" })
 
   -- Restore saved position
   local db = BravLib.Storage.GetDB()
@@ -1000,16 +1005,36 @@ local function RegisterUnitFrames()
     local ft = frames[entry.fkey]
     local root = ft and (ft.Root or ft)
     if root and root.SetPoint and not _registry[entry.name] then
+      local def = BravLib.Storage.GetDefaults()
+      local defUF = def and def.unitframes and def.unitframes[entry.dbKey]
+      local defPos = { x = defUF and defUF.posX or 0, y = defUF and defUF.posY or 0 }
       Mover:Register(entry.name, root, function()
         local db = BravLib.Storage.GetDB()
         if not db or not db.unitframes then return end
         local uf = db.unitframes[entry.dbKey]
         if uf then return uf, "posX", "posY" end
-      end, { x = 0, y = 0 }, { category = "uf", menuPage = "unitframes" })
+      end, defPos, { category = "uf", menuPage = "unitframes" })
       count = count + 1
     end
   end
   BravLib.Debug("Mover: " .. count .. " UnitFrames registered")
+end
+
+-- ============================================================================
+-- RESTORE ALL POSITIONS (utilisé au chargement + switch de profil)
+-- ============================================================================
+
+local function RestoreAllPositions()
+  for name, entry in pairs(_registry) do
+    if entry.frame and entry.dbFunc then
+      local db, keyX, keyY = entry.dbFunc()
+      if db and keyX and keyY and db[keyX] and db[keyY] then
+        local fs = entry.frame:GetScale() or 1
+        entry.frame:ClearAllPoints()
+        entry.frame:SetPoint("CENTER", UIParent, "CENTER", db[keyX] / fs, db[keyY] / fs)
+      end
+    end
+  end
 end
 
 -- Register on Enter too (in case PLAYER_LOGIN already fired)
@@ -1020,7 +1045,10 @@ EnsureUFRegistered = function()
 end
 
 BravLib.Event.Register("PLAYER_ENTERING_WORLD", function()
-  C_Timer.After(1, EnsureUFRegistered)
+  C_Timer.After(1, function()
+    EnsureUFRegistered()
+    RestoreAllPositions()
+  end)
 end)
 
 -- ============================================================================
@@ -1038,3 +1066,16 @@ escFrame:SetScript("OnKeyDown", function(self, key)
   end
 end)
 escFrame:SetPropagateKeyboardInput(true)
+
+-- ============================================================================
+-- PROFILE SWITCH: re-appliquer toutes les positions + settings
+-- ============================================================================
+
+BravLib.Hooks.Register("PROFILE_CHANGED", function()
+  -- d'abord re-appliquer les settings (qui repositionnent les frames depuis la DB)
+  BravLib.Hooks.Fire("APPLY_ALL")
+  BravLib.Hooks.Fire("APPLY_MINIMAP")
+  BravLib.Hooks.Fire("APPLY_FONT")
+  -- puis restaurer les positions du Move system (a le dernier mot)
+  C_Timer.After(0.1, RestoreAllPositions)
+end)

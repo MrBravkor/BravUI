@@ -2,7 +2,7 @@
 ## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r
 ## Notes: Core UI replacement
 ## Author: Bravkor
-## Version: 2.0.2-alpha
+## Version: 2.0.3-alpha
 ## Group: BravUI
 ## Dependencies: BravUI_Lib
 ## SavedVariables: BravUI_DB

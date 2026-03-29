@@ -58,24 +58,13 @@ btn:SetAttribute("macrotext", "/leavevehicle [vehicleui]\n/dismount [mounted]")
 -- ============================================================================
 -- POSITION
 -- ============================================================================
-local function AnchorToPlayer()
-  btn:ClearAllPoints()
-  local anchor = BravUI.Frames.Player and BravUI.Frames.Player.PowerFrame
-  if anchor then
-    btn:SetPoint("TOP", anchor, "BOTTOM", 0, -4)
-  else
-    btn:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 120)
-  end
-end
-
 local function ApplyPosition()
   local pos = BravLib.API.Get("positions", "VehicleExit")
-  if pos then
-    btn:ClearAllPoints()
-    btn:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
-  else
-    AnchorToPlayer()
-  end
+  local px = pos and pos.x or 0
+  local py = pos and pos.y or -150
+  local fs = btn:GetScale() or 1
+  btn:ClearAllPoints()
+  btn:SetPoint("CENTER", UIParent, "CENTER", px / fs, py / fs)
 end
 
 -- ============================================================================

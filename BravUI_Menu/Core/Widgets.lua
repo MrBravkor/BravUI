@@ -139,6 +139,11 @@ local function ShowFlyout(ddBtn, items, currentValue, onSelect)
   fly:Show()
 end
 
+-- expose ShowFlyout on M for custom pages (e.g. Profils)
+function M:ShowFlyout(ddBtn, items, currentValue, onSelect)
+  ShowFlyout(ddBtn, items, currentValue, onSelect)
+end
+
 -- ============================================================================
 -- WIDGET BUILDERS
 -- ============================================================================

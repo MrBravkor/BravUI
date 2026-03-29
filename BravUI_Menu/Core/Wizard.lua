@@ -238,30 +238,32 @@ local BUILDERS = { BuildStep1_Welcome, BuildStep2_Profile }
 -- ============================================================================
 
 local function ApplyProfileChoice(wiz)
-  BravUI_DB = BravUI_DB or {}
-  BravUI_DB.global = BravUI_DB.global or {}
+  local Storage = BravLib.Storage
 
   if wiz._selectedProfile == "personal" then
+    -- Mode per-character
+    Storage.SetProfileMode("perChar")
+
+    -- Creer un profil au nom du personnage
     local nameOk, charKey = pcall(function()
       return UnitName("player") .. " - " .. GetRealmName()
     end)
     if nameOk and charKey then
-      BravUI_DB.global.enableGlobalProfiles = false
-      BravUI_DB.global._profileChoiceChars = BravUI_DB.global._profileChoiceChars or {}
-      BravUI_DB.global._profileChoiceChars[charKey] = true
-      BravLib.Print("Profil personnel actif: " .. charKey)
+      if not Storage.GetRawDB().profiles[charKey] then
+        Storage.CreateProfile(charKey, "Default")
+      end
+      Storage.SetActiveProfile(charKey)
+      BravLib.Print(format(L["wiz_profile_personal_msg"] or "Personal profile active: %s", charKey))
     end
   else
-    BravUI_DB.global.enableGlobalProfiles = true
-    BravUI_DB.global.globalProfile = "Default"
-    local nameOk, charKey = pcall(function()
-      return UnitName("player") .. " - " .. GetRealmName()
-    end)
-    if nameOk and charKey then
-      BravUI_DB.global._profileChoiceChars = BravUI_DB.global._profileChoiceChars or {}
-      BravUI_DB.global._profileChoiceChars[charKey] = true
+    -- Mode global : creer un profil "Global" et l'utiliser pour tous les chars
+    Storage.SetProfileMode("global")
+    if not Storage.GetRawDB().profiles["Global"] then
+      Storage.CreateProfile("Global", "Default")
     end
-    BravLib.Print("Profil global actif.")
+    Storage.SetGlobalProfileName("Global")
+    Storage.SetActiveProfile("Global")
+    BravLib.Print(L["wiz_profile_global_msg"] or "Global profile active.")
   end
 end
 

@@ -377,24 +377,13 @@ function AS.CreateAuraBar(opts)
 
     EnsureContainer()
 
-    -- Restaurer position sauvegardée via BravLib.API (système Move v2)
+    -- Position absolue (Move system ou defaults)
     local pos = BravLib.API.Get("positions", opts.moverName)
-    if pos then
-      container:ClearAllPoints()
-      container:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
-      return
-    end
-
+    local px = pos and pos.x or opts.defaultPos.x
+    local py = pos and pos.y or opts.defaultPos.y
+    local fs = container:GetScale() or 1
     container:ClearAllPoints()
-    if opts.defaultAnchor then
-      local anchor = opts.defaultAnchor()
-      if anchor then
-        container:SetPoint("TOP", anchor, "BOTTOM", 0, -4)
-        return
-      end
-    end
-    container:SetPoint("CENTER", UIParent, "CENTER",
-      opts.defaultPos.x, opts.defaultPos.y)
+    container:SetPoint("CENTER", UIParent, "CENTER", px / fs, py / fs)
   end
 
   mod.Update          = Update

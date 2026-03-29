@@ -443,8 +443,20 @@ function M:CreateMainFrame()
   tinsert(UISpecialFrames, "BravUI_MenuFrame")
 
   -- ── CACHE INVALIDATION ──
-  BravLib.Hooks.Register("PROFILE_CHANGED", function() M:InvalidatePageCache() end)
-  BravLib.Hooks.Register("SETTINGS_RESET",  function() M:InvalidatePageCache() end)
+  BravLib.Hooks.Register("PROFILE_CHANGED", function()
+    M:InvalidatePageCache()
+    local active = M:GetActivePage()
+    if active and f:IsShown() and f.OpenPage then
+      f:OpenPage(active)
+    end
+  end)
+  BravLib.Hooks.Register("SETTINGS_RESET", function()
+    M:InvalidatePageCache()
+    local active = M:GetActivePage()
+    if active and f:IsShown() and f.OpenPage then
+      f:OpenPage(active)
+    end
+  end)
 
   -- ── METHODS ──
 

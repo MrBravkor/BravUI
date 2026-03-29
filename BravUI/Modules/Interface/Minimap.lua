@@ -392,11 +392,13 @@ local function ApplyLayout(panel, db)
     pcall(panel._compartHolder._countText.SetFont, panel._compartHolder._countText, font, math.max(8, compartSz - 10), "OUTLINE")
   end
 
-  -- Position (saved position or DB defaults)
+  -- Position (Move system {x,y} ou DB defaults)
   local pos = BravLib.API.Get("positions", "Minimap")
-  if pos then
+  if pos and pos.x and pos.y then
+    -- format Move system (CENTER-based)
+    local fs = panel:GetScale() or 1
     panel:ClearAllPoints()
-    panel:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
+    panel:SetPoint("CENTER", UIParent, "CENTER", pos.x / fs, pos.y / fs)
   else
     panel:ClearAllPoints()
     panel:SetPoint(

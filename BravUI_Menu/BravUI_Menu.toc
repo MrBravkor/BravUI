@@ -2,7 +2,7 @@
 ## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r|cFFFFD700Menu|r
 ## Notes: Configuration interface for BravUI
 ## Author: MrBravkor
-## Version: 2.0.2-alpha
+## Version: 2.0.3-alpha
 ## Group: BravUI
 ## Dependencies: BravUI_Lib, BravUI
 ## LoadOnDemand: 1
@@ -25,5 +25,6 @@ Core/Wizard.lua
 Pages/General.lua
 Pages/UnitFrames.lua
 Pages/Minimap.lua
+Pages/Profils.lua
 Pages/Chat.lua
 Pages/ActionBars.lua
