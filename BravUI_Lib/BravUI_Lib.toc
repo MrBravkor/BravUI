@@ -2,7 +2,7 @@
 ## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r|cFFFFD700Lib|r
 ## Notes: Core libraries for BravUI
 ## Author: MrBravkor
-## Version: 2.0.1-alpha
+## Version: 2.0.2-alpha
 ## Group: BravUI
 
 BravLib_Core/Init.lua

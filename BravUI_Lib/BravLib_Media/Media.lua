@@ -26,11 +26,12 @@ function BravLib.Media.GetAll(mediaType)
 end
 
 -- Default WoW fonts
-BravLib.Media.Register("font", "default", STANDARD_TEXT_FONT)
+BravLib.Media.Register("font", "blizzard", STANDARD_TEXT_FONT)
 BravLib.Media.Register("font", "number", NUMBER_FONT_NORMAL)
 
 -- BravUI custom fonts
-BravLib.Media.Register("font", "uf",    "Interface/AddOns/BravUI_Lib/BravLib_Media/Fonts/Russo_One.ttf")
+BravLib.Media.Register("font", "default", "Interface/AddOns/BravUI_Lib/BravLib_Media/Fonts/Russo_One.ttf")
+BravLib.Media.Register("font", "uf",      "Interface/AddOns/BravUI_Lib/BravLib_Media/Fonts/Russo_One.ttf")
 BravLib.Media.Register("font", "icons", "Interface/AddOns/BravUI_Lib/BravLib_Media/Fonts/Font_Icons.ttf")
 
 -- Role icons

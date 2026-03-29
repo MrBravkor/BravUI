@@ -1,15 +1,50 @@
 ---@class BravUI
 BravUI = BravUI or {}
 
-BravUI.version = "2.0.1-alpha"
+BravUI.version = "2.0.2-alpha"
 BravUI.modules = {}
 
 local defaults = {
     general = {
         welcomeMessage = true,
         useClassColor  = true,
+        hideBlizzardUI = true,
     },
     positions  = {},
+    minimap = {
+        enabled          = true,
+        point            = "TOPRIGHT",
+        relPoint         = "TOPRIGHT",
+        x                = -30,
+        y                = -30,
+        panelWidth       = 250,
+        panelHeight      = 250,
+        opacity          = 0.75,
+        showHeader       = true,
+        showFooter       = true,
+        showClock        = true,
+        showCalendar     = true,
+        showTracking     = true,
+        showCompartment  = true,
+        hideAddonButtons = true,
+        headerIconSize   = 16,
+        mailIconSize     = 18,
+        diffIconSize     = 24,
+        compartIconSize  = 20,
+        iconColor        = { r = 1, g = 1, b = 1 },
+        mailIconColor    = { r = 1, g = 1, b = 1 },
+        diffIconColor    = { r = 1, g = 1, b = 1 },
+        compartIconColor = { r = 1, g = 1, b = 1 },
+        headerFontSize   = 11,
+        clockFontSize    = 11,
+        footerFontSize   = 11,
+        guildFontSize    = 11,
+        clockFormat      = "24h",
+        zoneTextColor    = { r = 1, g = 1, b = 1 },
+        clockTextColor   = { r = 1, g = 1, b = 1 },
+        contactsTextColor = { r = 1, g = 1, b = 1 },
+        guildTextColor   = { r = 1, g = 1, b = 1 },
+    },
     unitframes = {
         player = {
             width          = 220,
@@ -289,6 +324,44 @@ end
 
 BravLib.Event.Register("ADDON_LOADED", OnAddonLoaded)
 BravLib.Event.Register("PLAYER_LOGIN", OnPlayerLogin)
+
+-- ============================================================================
+-- SLASH COMMANDS (registered in core so they work with LoadOnDemand menu)
+-- ============================================================================
+
+SLASH_BRAV1 = "/brav"
+SlashCmdList["BRAV"] = function()
+    local loaded = C_AddOns and C_AddOns.LoadAddOn or LoadAddOn
+    if loaded then pcall(loaded, "BravUI_Menu") end
+    if BravUI.Menu and BravUI.Menu.Toggle then
+        BravUI.Menu:Toggle()
+    end
+end
+
+SLASH_BRAVMOVE1 = "/bravmove"
+SlashCmdList["BRAVMOVE"] = function()
+    if BravUI.Mover and BravUI.Mover.Toggle then
+        BravUI.Mover:Toggle()
+    elseif BravUI.Move and BravUI.Move.Toggle then
+        BravUI.Move.Toggle()
+    end
+end
+
+SLASH_BRAVRESET1 = "/bravreset"
+SlashCmdList["BRAVRESET"] = function()
+    BravLib.Storage.Reset()
+    BravLib.Print("Settings reset to defaults. Reload UI to apply.")
+end
+
+SLASH_BRAVDEBUG1 = "/bravdebug"
+SlashCmdList["BRAVDEBUG"] = function()
+    BravLib.debug = not BravLib.debug
+    BravLib.Print("Debug mode: " .. (BravLib.debug and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
+end
+
+-- ============================================================================
+-- MODULE REGISTRATION
+-- ============================================================================
 
 function BravUI:RegisterModule(name, module)
     if self.modules[name] then

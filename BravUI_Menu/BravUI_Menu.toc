@@ -2,14 +2,26 @@
 ## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r|cFFFFD700Menu|r
 ## Notes: Configuration interface for BravUI
 ## Author: MrBravkor
-## Version: 2.0.1-alpha
+## Version: 2.0.2-alpha
 ## Group: BravUI
 ## Dependencies: BravUI_Lib, BravUI
+## LoadOnDemand: 1
 
+# Namespace
 Init.lua
+
+# Locales
+Locales/frFR.lua
+Locales/enUS.lua
+
+# Core
 Core/Init.lua
 Core/Load.lua
+Core/Navig.lua
 Core/Widgets.lua
+Core/Wizard.lua
+
+# Pages
 Pages/General.lua
 Pages/UnitFrames.lua
 Pages/Minimap.lua

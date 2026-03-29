@@ -2,7 +2,7 @@
 ## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r
 ## Notes: Core UI replacement
 ## Author: Bravkor
-## Version: 2.0.1-alpha
+## Version: 2.0.2-alpha
 ## Group: BravUI
 ## Dependencies: BravUI_Lib
 ## SavedVariables: BravUI_DB
@@ -11,7 +11,10 @@ Core/Init.lua
 Core/Load.lua
 Core/Move.lua
 Core/Utils.lua
+Core/Setup.lua
+Core/EscMenu.lua
 
 Modules/UnitFrames/UnitFrames.xml
+Modules/Interface/Minimap.lua
 
 Modules/Misc/VehicleExit.lua

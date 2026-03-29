@@ -22,6 +22,10 @@ function BravLib.Storage.GetDB()
     return db
 end
 
+function BravLib.Storage.GetDefaults()
+    return BravLib.CopyTable(defaults)
+end
+
 function BravLib.Storage.Reset()
     if not db then return end
     wipe(db)
