@@ -9,6 +9,8 @@ local defaults = {
         welcomeMessage = true,
         useClassColor  = true,
         hideBlizzardUI = true,
+        font           = "russo",
+        globalFontSize = 12,
     },
     positions  = {
         VehicleExit  = { x = 0,    y = -150 },
@@ -16,6 +18,16 @@ local defaults = {
         PlayerDebuffs = { x = 0,   y = -186 },
         TargetBuffs  = { x = 0,    y = -290 },
         TargetDebuffs = { x = 0,   y = -316 },
+        ["Barre 1"]   = { x = 0,   y = -360 },
+        ["Barre 2"]   = { x = 0,   y = -400 },
+        ["Barre 3"]   = { x = 0,   y = -440 },
+        ["Barre 4"]   = { x = 0,   y = -480 },
+        ["Barre 5"]   = { x = 0,   y = -520 },
+        ["Barre 6"]   = { x = 0,   y = -560 },
+        ["Barre 7"]   = { x = 0,   y = -600 },
+        ["Barre 8"]   = { x = 0,   y = -640 },
+        Familiers      = { x = 0,   y = -680 },
+        Postures       = { x = 0,   y = -720 },
     },
     minimap = {
         enabled          = true,
@@ -53,6 +65,8 @@ local defaults = {
     },
     unitframes = {
         player = {
+            enabled        = true,
+            scale          = 1,
             posX           = 0,
             posY           = -200,
             width          = 220,
@@ -67,7 +81,11 @@ local defaults = {
                 useClassColor  = true,
                 usePowerColor  = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true, anchor = "LEFT",   size = 13, offsetX = 6,  offsetY = 0 },
+                hp    = { enabled = true, anchor = "RIGHT",  size = 13, offsetX = -6, offsetY = 0, format = "VALUE_PERCENT" },
+                power = { enabled = true, anchor = "CENTER", size = 11, format = "VALUE" },
+            },
             cast = {
                 enabled    = true,
                 anchor     = "POWER_BOTTOM",
@@ -100,6 +118,8 @@ local defaults = {
             },
         },
         tot = {
+            enabled   = true,
+            scale     = 1,
             posX      = 0,
             posY      = -285,
             width     = 180,
@@ -113,9 +133,15 @@ local defaults = {
                 usePowerColor = true,
                 useReaction   = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true, anchor = "LEFT",   size = 10, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true, anchor = "RIGHT",  size = 10, offsetX = -4, offsetY = 0, format = "VALUE_PERCENT" },
+                power = { enabled = false, anchor = "CENTER", size = 8,  format = "VALUE" },
+            },
         },
         pet = {
+            enabled   = true,
+            scale     = 1,
             posX      = -200,
             posY      = -200,
             width     = 120,
@@ -128,7 +154,11 @@ local defaults = {
                 useClassColor = false,
                 usePowerColor = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true, anchor = "LEFT",   size = 10, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true, anchor = "RIGHT",  size = 10, offsetX = -4, offsetY = 0, format = "VALUE_PERCENT" },
+                power = { enabled = false, anchor = "CENTER", size = 8,  format = "VALUE" },
+            },
             cast = {
                 enabled   = true,
                 anchor    = "POWER_BOTTOM",
@@ -145,6 +175,8 @@ local defaults = {
             },
         },
         focus = {
+            enabled        = true,
+            scale          = 1,
             posX           = 0,
             posY           = -320,
             width          = 180,
@@ -158,9 +190,15 @@ local defaults = {
                 usePowerColor  = true,
                 useReaction    = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true, anchor = "LEFT",   size = 11, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true, anchor = "RIGHT",  size = 11, offsetX = -4, offsetY = 0, format = "VALUE_PERCENT" },
+                power = { enabled = true, anchor = "CENTER", size = 10, format = "VALUE" },
+            },
         },
         target = {
+            enabled          = true,
+            scale            = 1,
             posX             = 0,
             posY             = -250,
             cast = {
@@ -190,7 +228,12 @@ local defaults = {
                 usePowerColor  = true,
                 useReaction    = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true, anchor = "LEFT",   size = 13, offsetX = 6,  offsetY = 0 },
+                hp    = { enabled = true, anchor = "RIGHT",  size = 13, offsetX = -6, offsetY = 0, format = "VALUE_PERCENT" },
+                power = { enabled = true, anchor = "CENTER", size = 11, format = "VALUE" },
+                level = { enabled = true, size = 12 },
+            },
             buffs = {
                 enabled       = true,
                 count         = 16,
@@ -226,7 +269,7 @@ local defaults = {
             outOfRangeAlpha = 0.4,
             showRole        = true,
             showLeader      = true,
-            scale           = 1.0,
+            scale           = 1,
             posX            = -350,
             posY            = -200,
             height = {
@@ -238,7 +281,11 @@ local defaults = {
                 useClassColor = true,
                 usePowerColor = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true,  size = 10, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true,  size = 10, offsetX = -4, offsetY = 0 },
+                power = { enabled = false, size = 8 },
+            },
         },
         raid15 = {
             enabled         = true,
@@ -253,7 +300,7 @@ local defaults = {
             showLeader      = true,
             groupBySubgroup = false,
             showGroupLabel  = true,
-            scale           = 1.0,
+            scale           = 1,
             posX            = -350,
             posY            = -200,
             height = {
@@ -264,7 +311,11 @@ local defaults = {
                 useClassColor = true,
                 usePowerColor = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true,  size = 10, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true,  size = 10, offsetX = -4, offsetY = 0 },
+                power = { enabled = false, size = 8 },
+            },
         },
         raid25 = {
             enabled         = true,
@@ -279,7 +330,7 @@ local defaults = {
             showLeader      = true,
             groupBySubgroup = false,
             showGroupLabel  = true,
-            scale           = 1.0,
+            scale           = 1,
             posX            = -350,
             posY            = -200,
             height = {
@@ -290,7 +341,11 @@ local defaults = {
                 useClassColor = true,
                 usePowerColor = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true,  size = 10, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true,  size = 10, offsetX = -4, offsetY = 0 },
+                power = { enabled = false, size = 8 },
+            },
         },
         raid40 = {
             enabled         = true,
@@ -305,7 +360,7 @@ local defaults = {
             showLeader      = true,
             groupBySubgroup = false,
             showGroupLabel  = true,
-            scale           = 1.0,
+            scale           = 1,
             posX            = -350,
             posY            = -200,
             height = {
@@ -316,8 +371,22 @@ local defaults = {
                 useClassColor = true,
                 usePowerColor = true,
             },
-            text = {},
+            text = {
+                name  = { enabled = true,  size = 9,  offsetX = 3,  offsetY = 0 },
+                hp    = { enabled = false, size = 9,  offsetX = -3, offsetY = 0 },
+                power = { enabled = false, size = 8 },
+            },
         },
+    },
+    actionbars = {
+        enabled          = true,
+        buttonSize       = 36,
+        buttonSpacing    = 2,
+        showKeybinds     = true,
+        showMacroNames   = false,
+        showEmptySlots   = true,
+        showCooldownText = true,
+        bars             = {},
     },
 }
 

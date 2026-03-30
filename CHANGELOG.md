@@ -2,6 +2,59 @@
 
 ---
 
+## [2.0.4-alpha] — 30/03/2026
+
+Module ActionBars complet, corrections menu UnitFrames, fix Midnight secrets.
+
+### Module ActionBars
+
+- Port complet v1 vers v2 — fichier unique sans dependances externes
+- 10 barres (1-8, familier, postures) avec reparenting des boutons Blizzard
+- Skin BravUI sur chaque bouton (backdrop, highlight, pushed, checked, flash)
+- Stance bar dynamique — nombre de boutons adapte a la classe (`GetNumShapeshiftForms`)
+- Visibilite per-bar : mouseover fade, masquer en combat / hors combat, alpha combat
+- Per-bar settings : taille, espacement, origin, icon zoom, contour, textes, couleurs
+- Positionnement CENTER synchronise avec le Move system (`/bravmove`)
+- Page menu ActionBars complete avec sous-onglets par barre
+- Hook `APPLY_ACTIONBARS` pour rafraichissement live depuis le menu
+
+### Systeme de keybind (`/bravbind`)
+
+- Mode keybind maison remplacant LibKeyBound
+- Header flottant en haut de l'ecran avec bordure couleur de classe
+- Toggle **Personnage / Compte** — choix du binding set persiste dans la DB
+- Overlay sur chaque bouton affichant le raccourci actuel
+- Hover + touche = bind, clic droit = effacer, ESC = quitter
+- Combinaisons Shift/Ctrl/Alt supportees
+- Toggle accessible dans la page menu ActionBars et via `/bravbind`
+
+### Menu UnitFrames — textes et auras
+
+- Defaults `text` remplis pour les 9 unit frames (valeurs v1 restaurees)
+- Textes (nom, HP, power) respectent `enabled` dans tous les modules : Player, Target, ToT, Focus, Pet, Group, Raid
+- `RefreshHPText` ajoute dans Player.Refresh pour application live
+- Hook `APPLY_UNIT` appelle `RefreshAuras` — options buffs/debuffs fonctionnelles
+
+### Menu Minimap
+
+- Sliders Offset X/Y ecrivent dans `db.positions.Minimap` (sync Move system)
+
+### Move system
+
+- `BravUI.Move.Register()` expose pour les movers custom
+- Clamping des saisies manuelles X/Y aux bords de l'ecran
+
+### Corrections
+
+- ActionBars : `SetClampedToScreen` sur les frames BravBar
+- ActionBars : `RegisterForClicks("AnyDown", "AnyUp")` apres reparent (fix misclick TWW)
+- CastBarFactory : `notInterruptible` (secret boolean Midnight) wrappe dans pcall
+- CastBarFactory : `startMS`/`endMS` (secret numbers Midnight) arithmetique wrappee dans pcall
+- Police globale : `U.GetFont()` dynamique dans tous les modules
+- Target frame ne force plus `Show()` dans ApplyFromDB
+
+---
+
 ## [2.0.3-alpha] — 29/03/2026
 
 Systeme de profils complet, sans dependances externes.

@@ -253,6 +253,20 @@ end
 -- FONT HELPERS
 -- ============================================================================
 
+local FONT_MAP = {
+  russo       = "Interface/AddOns/BravUI_Lib/BravLib_Media/Fonts/Russo_One.ttf",
+  frizqt      = "Fonts\\FRIZQT__.TTF",
+  morpheus    = "Fonts\\MORPHEUS.TTF",
+  arialnarrow = "Fonts\\ARIALN.TTF",
+  skurri      = "Fonts\\SKURRI.TTF",
+  nimrod      = "Fonts\\NIM_____.TTF",
+}
+
+function U.GetFont()
+  local key = BravLib.API.Get("general", "font") or "russo"
+  return FONT_MAP[key] or FONT_MAP["russo"]
+end
+
 function U.SafeSetFont(fontString, path, size, flags)
   if not fontString or not fontString.SetFont then return false end
   path  = path  or "Fonts\\FRIZQT__.TTF"
@@ -1099,8 +1113,7 @@ end
 -- UNITFRAME FACTORIES
 -- ============================================================================
 
-local UF_FONT = BravLib.Media.Get("font", "uf") or BravLib.Media.Get("font", "default") or STANDARD_TEXT_FONT
-U.UF_FONT = UF_FONT
+local function UF_FONT() return U.GetFont() end
 
 -- ============================================================
 -- 1. DB CONFIG GETTERS FACTORY
@@ -1236,7 +1249,7 @@ function U.CreateText(parent, point, justify, fontSize, offsetX, offsetY)
   fs:SetJustifyH(justify or point)
   fs:SetWordWrap(false)
   fs:SetFontObject("GameFontHighlightSmall")
-  pcall(function() fs:SetFont(UF_FONT, fontSize or 12, "OUTLINE") end)
+  pcall(function() fs:SetFont(UF_FONT(), fontSize or 12, "OUTLINE") end)
   return fs
 end
 
@@ -1495,7 +1508,7 @@ function U.ApplyTextConfig(fs, textCfg, parent, point, defSize, defOffX, defOffY
   fs:Show()
   local anchor = textCfg.anchor or point
   local size   = textCfg.size   or defSize
-  pcall(function() fs:SetFont(UF_FONT, size, "OUTLINE") end)
+  pcall(function() fs:SetFont(UF_FONT(), size, "OUTLINE") end)
   fs:SetJustifyH(JustifyFromPoint(anchor))
   fs:ClearAllPoints()
   fs:SetPoint(anchor, parent, anchor, textCfg.offsetX or defOffX, textCfg.offsetY or defOffY)

@@ -10,7 +10,7 @@ if not C_UnitAuras or not C_UnitAuras.GetBuffDataByIndex then return end
 BravUI.AurasShared = {}
 local AS = BravUI.AurasShared
 
-local FONT_PATH = BravLib.Media.Get("font", "uf") or BravLib.Media.Get("font", "default") or STANDARD_TEXT_FONT
+local function FONT_PATH() return BravUI.Utils.GetFont() end
 local TEX       = "Interface/Buttons/WHITE8x8"
 
 local U             = BravUI.Utils
@@ -18,11 +18,11 @@ local GetClassColor = U.GetClassColor
 
 -- Small font for cooldown countdown text (fits inside 22px icons)
 local CD_FONT = CreateFont("BravUI_AuraCooldownFont")
-pcall(function() CD_FONT:SetFont(FONT_PATH, 7, "OUTLINE") end)
+pcall(function() CD_FONT:SetFont(FONT_PATH(), 7, "OUTLINE") end)
 
 -- Hidden FontString for secret value roundtrips (combatOnly filter)
 local _helperFS = UIParent:CreateFontString(nil, "BACKGROUND")
-pcall(function() _helperFS:SetFont(FONT_PATH, 10, "OUTLINE") end)
+pcall(function() _helperFS:SetFont(FONT_PATH(), 10, "OUTLINE") end)
 _helperFS:Hide()
 
 -- ============================================================================
@@ -173,7 +173,7 @@ local function CreateIconSlot(parent, size, unitToken)
   local function StyleCDText(self)
     pcall(function()
       local fs = self:GetCountdownFontString()
-      if fs then fs:SetFont(FONT_PATH, 7, "OUTLINE") end
+      if fs then fs:SetFont(FONT_PATH(), 7, "OUTLINE") end
     end)
   end
   pcall(function() hooksecurefunc(cd, "SetCooldownFromDurationObject",  StyleCDText) end)
@@ -188,7 +188,7 @@ local function CreateIconSlot(parent, size, unitToken)
   overlay:SetFrameLevel(slot:GetFrameLevel() + 3)
 
   local count = overlay:CreateFontString(nil, "OVERLAY")
-  pcall(function() count:SetFont(FONT_PATH, 10, "OUTLINE") end)
+  pcall(function() count:SetFont(FONT_PATH(), 10, "OUTLINE") end)
   count:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", -1, 1)
   count:SetJustifyH("RIGHT")
   count:SetText("")

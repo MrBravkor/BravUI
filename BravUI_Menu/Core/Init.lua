@@ -51,14 +51,14 @@ M.Theme = {
   BTN       = { 0.10, 0.10, 0.12, 0.80 },
   BTN_HOVER = { 0.16, 0.16, 0.18, 0.90 },
 
-  -- Font
-  FONT = BravLib.Media.Get("font", "default"),
+  -- Font (resolved dynamically via GetFont)
+  FONT = nil,
 
   -- Textures
   TEX = "Interface/Buttons/WHITE8x8",
 
   -- Extra fields
-  FONT_PATH = BravLib.Media.Get("font", "default"),
+  FONT_PATH = nil,
   LOGO_PATH = "Interface/AddOns/BravUI_Lib/BravLib_Media/Logo/BravUI_64x64.tga",
   TEX_WHITE = "Interface/Buttons/WHITE8x8",
   ACCENT    = { 0.20, 0.85, 0.90, 1.00 },
@@ -84,7 +84,7 @@ end
 
 function M:SafeFont(fs, size, flags)
   if not fs then return end
-  local font = BravLib.Media.Get("font", "default")
+  local font = BravUI.Utils.GetFont()
   local ok = pcall(function()
     fs:SetFont(font, size or 12, flags or "OUTLINE")
   end)

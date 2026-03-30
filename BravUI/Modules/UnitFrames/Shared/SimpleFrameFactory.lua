@@ -61,7 +61,7 @@ function BravUI.SimpleFrameFactory.Create(cfg)
   -- ============================================================================
   -- DB
   -- ============================================================================
-  local GetConfig, _, _, _, GetTextConfig = U.MakeConfigGetters(DB_KEY)
+  local GetConfig, _, _, GetColorConfig, GetTextConfig = U.MakeConfigGetters(DB_KEY)
 
   -- ============================================================================
   -- ROOT FRAME
@@ -142,6 +142,21 @@ function BravUI.SimpleFrameFactory.Create(cfg)
   local function ApplyFromDB()
     if InCombatLockdown() then return end
     local c    = GetConfig() or {}
+
+    if c.enabled == false then
+      HideFrame()
+      if clickOverlay then clickOverlay:Hide() end
+      return
+    end
+
+    local s = U.ClampNum(c.scale, 0.5, 2.0, 1.0)
+    f:SetScale(s)
+
+    local px = U.ClampNum(c.posX, -2000, 2000, cfg.defaultPos.x)
+    local py = U.ClampNum(c.posY, -2000, 2000, cfg.defaultPos.y)
+    f:ClearAllPoints()
+    f:SetPoint("CENTER", UIParent, "CENTER", px / s, py / s)
+
     local w    = c.width or DEF_W
     local hpH  = (c.height and c.height.hp)    or HP_H
     local pwrH = (c.height and c.height.power) or PWR_H
@@ -180,6 +195,13 @@ function BravUI.SimpleFrameFactory.Create(cfg)
   local function Update()
     if previewMode then return end
 
+    local c = GetConfig() or {}
+    if c.enabled == false then
+      HideFrame()
+      if not InCombatLockdown() and clickOverlay then clickOverlay:Hide() end
+      return
+    end
+
     local exists    = SafeUnitExists(UNIT)
     local extraHide = cfg.extraHideCheck and cfg.extraHideCheck() or false
 
@@ -198,9 +220,18 @@ function BravUI.SimpleFrameFactory.Create(cfg)
       power:SetMinMaxValues(0, 1)
       power:SetValue(0)
       power:SetStatusBarColor(0.2, 0.2, 0.2)
-      WriteNameToFS(hpNameText, UNIT)
-      hpValueText:SetText(DEAD_TEXT)
-      powerText:SetText("")
+      local nameCfg = GetTextConfig("name")
+      if not nameCfg or nameCfg.enabled ~= false then
+        WriteNameToFS(hpNameText, UNIT)
+      end
+      local hpCfg = GetTextConfig("hp")
+      if not hpCfg or hpCfg.enabled ~= false then
+        hpValueText:SetText(DEAD_TEXT)
+      end
+      local pwrCfg = GetTextConfig("power")
+      if not pwrCfg or pwrCfg.enabled ~= false then
+        powerText:SetText("")
+      end
       ShowFrame()
       if not InCombatLockdown() then
         if clickOverlay then clickOverlay:Show() end
@@ -214,33 +245,46 @@ function BravUI.SimpleFrameFactory.Create(cfg)
       hp:SetValue(UnitHealth(UNIT))
     end)
 
-    local hpFmt = "VALUE"
     local hpCfg = GetTextConfig("hp")
-    if hpCfg and hpCfg.format then hpFmt = hpCfg.format end
-    if hpFmt == "NONE" then
+    if hpCfg and hpCfg.enabled == false then
       hpValueText:SetText("")
     else
-      pcall(function() hpValueText:SetText(Abbrev(UnitHealth(UNIT))) end)
+      local hpFmt = "VALUE"
+      if hpCfg and hpCfg.format then hpFmt = hpCfg.format end
+      if hpFmt == "NONE" then
+        hpValueText:SetText("")
+      else
+        pcall(function() hpValueText:SetText(Abbrev(UnitHealth(UNIT))) end)
+      end
     end
 
-    WriteNameToFS(hpNameText, UNIT)
+    local nameCfg = GetTextConfig("name")
+    if not nameCfg or nameCfg.enabled ~= false then
+      WriteNameToFS(hpNameText, UNIT)
+    end
 
     pcall(function()
       power:SetMinMaxValues(0, UnitPowerMax(UNIT))
       power:SetValue(UnitPower(UNIT))
     end)
 
-    local pwrFmt = "VALUE"
     local pwrCfg = GetTextConfig("power")
-    if pwrCfg and pwrCfg.format then pwrFmt = pwrCfg.format end
-    if pwrFmt == "NONE" then
+    if pwrCfg and pwrCfg.enabled == false then
       powerText:SetText("")
     else
-      pcall(function() powerText:SetText(Abbrev(UnitPower(UNIT))) end)
+      local pwrFmt = "VALUE"
+      if pwrCfg and pwrCfg.format then pwrFmt = pwrCfg.format end
+      if pwrFmt == "NONE" then
+        powerText:SetText("")
+      else
+        pcall(function() powerText:SetText(Abbrev(UnitPower(UNIT))) end)
+      end
     end
 
-    U.UpdateHPColorCascade(UNIT,    hp)
-    U.UpdatePowerColorCascade(UNIT, power)
+    local colorCfg = GetColorConfig()
+    local colorOpts = cfg.allowReaction and { allowReaction = true } or nil
+    U.UpdateHPColor(UNIT, hp, colorCfg, colorOpts)
+    U.UpdatePowerColor(UNIT, power, colorCfg)
     ShowFrame()
     if not InCombatLockdown() then
       if clickOverlay then clickOverlay:Show() end

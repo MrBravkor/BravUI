@@ -24,7 +24,7 @@ local function GetClassColor()
 end
 
 local function GetFont()
-  return BravLib.Media.Get("font", "default") or STANDARD_TEXT_FONT
+  return BravUI.Utils.GetFont()
 end
 
 local function SafeSetFont(fs, size, flags)

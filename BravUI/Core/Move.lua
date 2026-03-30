@@ -7,7 +7,7 @@ local BravUI = BravUI
 local TEX  = "Interface/Buttons/WHITE8x8"
 
 local function GetFont()
-  return BravLib.Media.Get("font", "default") or STANDARD_TEXT_FONT
+  return BravUI.Utils.GetFont()
 end
 
 local function GetClassColor()
@@ -423,6 +423,14 @@ local function CreateOverlay(entry, name)
     local ny = tonumber(ebY:GetText())
     if not nx or not ny then return end
 
+    -- Clamp to screen bounds
+    local pw, ph = UIParent:GetWidth(), UIParent:GetHeight()
+    local cs = (cover or frame):GetScale() or 1
+    local halfW = ((cover:GetWidth() or frame:GetWidth()) * cs) / 2
+    local halfH = ((cover:GetHeight() or frame:GetHeight()) * cs) / 2
+    nx = math.max(-pw / 2 + halfW, math.min(pw / 2 - halfW, nx))
+    ny = math.max(-ph / 2 + halfH, math.min(ph / 2 - halfH, ny))
+
     local fs = frame:GetScale() or 1
     frame._moverDragging = true
     frame:ClearAllPoints()
@@ -430,6 +438,9 @@ local function CreateOverlay(entry, name)
     frame._moverDragging = nil
     AnchorOverlayToVisual(ov, cover)
     Mover:SavePosition(name)
+
+    ebX:SetText(tostring(math.floor(nx + 0.5)))
+    ebY:SetText(tostring(math.floor(ny + 0.5)))
   end
 
   ebX:SetScript("OnEnterPressed", function(self) ApplyFromInputs(); self:ClearFocus() end)
@@ -978,6 +989,10 @@ end
 
 function BravUI.Move.IsUnlocked()
   return _active
+end
+
+function BravUI.Move.Register(name, frame, dbFunc, defaults, opts)
+  Mover:Register(name, frame, dbFunc, defaults, opts)
 end
 
 -- ============================================================================

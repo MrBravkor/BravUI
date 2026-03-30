@@ -729,6 +729,338 @@ function BUILDERS.dropdown(parent, spec, refreshFn)
 end
 
 -- COLOR PICKER
+-- ── Color Picker Popup (shared, reused) ──
+local _colorPopup
+
+local COLOR_PRESETS = {
+  -- Colonnes = teintes (rouge → orange → jaune → vert → cyan → bleu → violet → rose)
+  -- Lignes = du plus vif au plus sombre
+
+  -- row 1: vif / saturé
+  { 1.0, 0.0, 0.0 }, { 1.0, 0.5, 0.0 }, { 1.0, 1.0, 0.0 }, { 0.0, 1.0, 0.0 },
+  { 0.0, 1.0, 1.0 }, { 0.0, 0.0, 1.0 }, { 0.5, 0.0, 1.0 }, { 1.0, 0.0, 1.0 },
+
+  -- row 2: clair
+  { 1.0, 0.4, 0.4 }, { 1.0, 0.7, 0.4 }, { 1.0, 1.0, 0.4 }, { 0.4, 1.0, 0.4 },
+  { 0.4, 1.0, 1.0 }, { 0.4, 0.4, 1.0 }, { 0.7, 0.4, 1.0 }, { 1.0, 0.4, 1.0 },
+
+  -- row 3: pastel
+  { 1.0, 0.7, 0.7 }, { 1.0, 0.85, 0.7 }, { 1.0, 1.0, 0.7 }, { 0.7, 1.0, 0.7 },
+  { 0.7, 1.0, 1.0 }, { 0.7, 0.7, 1.0 }, { 0.85, 0.7, 1.0 }, { 1.0, 0.7, 1.0 },
+
+  -- row 4: moyen
+  { 0.8, 0.0, 0.0 }, { 0.8, 0.4, 0.0 }, { 0.8, 0.8, 0.0 }, { 0.0, 0.8, 0.0 },
+  { 0.0, 0.8, 0.8 }, { 0.0, 0.0, 0.8 }, { 0.4, 0.0, 0.8 }, { 0.8, 0.0, 0.8 },
+
+  -- row 5: sombre
+  { 0.5, 0.0, 0.0 }, { 0.5, 0.25, 0.0 }, { 0.5, 0.5, 0.0 }, { 0.0, 0.5, 0.0 },
+  { 0.0, 0.5, 0.5 }, { 0.0, 0.0, 0.5 }, { 0.25, 0.0, 0.5 }, { 0.5, 0.0, 0.5 },
+
+  -- row 6: neutres (blanc → noir)
+  { 1.0, 1.0, 1.0 }, { 0.85, 0.85, 0.85 }, { 0.7, 0.7, 0.7 }, { 0.55, 0.55, 0.55 },
+  { 0.4, 0.4, 0.4 }, { 0.25, 0.25, 0.25 }, { 0.12, 0.12, 0.12 }, { 0.0, 0.0, 0.0 },
+}
+
+local function RGBToHex(r, g, b)
+  return string.format("%02X%02X%02X",
+    math.floor((r or 1) * 255 + 0.5),
+    math.floor((g or 1) * 255 + 0.5),
+    math.floor((b or 1) * 255 + 0.5))
+end
+
+local function HexToRGB(hex)
+  hex = hex:gsub("^#", "")
+  if #hex ~= 6 then return nil end
+  local r = tonumber(hex:sub(1, 2), 16)
+  local g = tonumber(hex:sub(3, 4), 16)
+  local b = tonumber(hex:sub(5, 6), 16)
+  if not r or not g or not b then return nil end
+  return r / 255, g / 255, b / 255
+end
+
+local function GetOrCreateColorPopup()
+  if _colorPopup then return _colorPopup end
+
+  local COLS      = 8
+  local SSIZE     = 22
+  local SPAD      = 3
+  local PAD       = 12
+  local PREV_W    = 28
+  local BRIGHT_W  = 18
+  local GAP_H     = 8
+  local ROWS      = math.ceil(#COLOR_PRESETS / COLS)
+  local gridW     = COLS * (SSIZE + SPAD) - SPAD
+  local gridH     = ROWS * (SSIZE + SPAD) - SPAD
+  local BRIGHT_STEPS = 10
+  local BRIGHT_H  = gridH
+
+  local HEADER_H = 20
+  local topRowW  = PREV_W + GAP_H + BRIGHT_W + GAP_H + gridW
+  local totalW   = topRowW + PAD * 2
+  local totalH   = PAD + HEADER_H + GAP_H + gridH + GAP_H + 22 + GAP_H + 22 + PAD
+
+  local popup = CreateFrame("Frame", "BravUI_ColorPopup", UIParent,
+    BackdropTemplateMixin and "BackdropTemplate" or nil)
+  popup:SetSize(totalW, totalH)
+  popup:SetPoint("CENTER")
+  popup:SetFrameStrata("DIALOG")
+  popup:SetFrameLevel(200)
+  popup:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+  popup:SetBackdropColor(0.06, 0.06, 0.08, 0.97)
+  popup:SetBackdropBorderColor(0.25, 0.25, 0.30, 1)
+  popup:EnableMouse(true)
+  popup:SetMovable(true)
+  popup:RegisterForDrag("LeftButton")
+  popup:SetScript("OnDragStart", popup.StartMoving)
+  popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
+  popup:Hide()
+
+  -- header
+  local headerText = popup:CreateFontString(nil, "OVERLAY")
+  M:SafeFont(headerText, 11, "OUTLINE")
+  headerText:SetPoint("TOP", popup, "TOP", 0, -PAD)
+  headerText:SetText("Palette de couleurs")
+  headerText:SetTextColor(unpack(T.TEXT))
+
+  -- close button (red X)
+  local closeBtn = CreateFrame("Button", nil, popup)
+  closeBtn:SetSize(16, 16)
+  closeBtn:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -6, -6)
+  local closeLabel = closeBtn:CreateFontString(nil, "OVERLAY")
+  M:SafeFont(closeLabel, 12, "OUTLINE")
+  closeLabel:SetPoint("CENTER")
+  closeLabel:SetText("X")
+  closeLabel:SetTextColor(0.8, 0.2, 0.2, 1)
+  closeBtn:SetScript("OnEnter", function() closeLabel:SetTextColor(1, 0.3, 0.3, 1) end)
+  closeBtn:SetScript("OnLeave", function() closeLabel:SetTextColor(0.8, 0.2, 0.2, 1) end)
+  closeBtn:SetScript("OnClick", function() popup:Hide() end)
+
+  -- base color (before brightness), stored for brightness slider
+  local baseR, baseG, baseB = 1, 0, 0
+  local brightness = 1.0
+
+  local function ApplyColor()
+    local r = baseR * brightness
+    local g = baseG * brightness
+    local b = baseB * brightness
+    if popup._onPick then popup._onPick(r, g, b) end
+  end
+
+  -- ── Left: preview bar (selected color) ──
+  local preview = CreateFrame("Frame", nil, popup, BackdropTemplateMixin and "BackdropTemplate" or nil)
+  preview:SetSize(PREV_W, gridH)
+  preview:SetPoint("TOPLEFT", popup, "TOPLEFT", PAD, -(PAD + HEADER_H + GAP_H))
+  preview:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+  preview:SetBackdropBorderColor(0.25, 0.25, 0.30, 1)
+  popup._preview = preview
+
+  -- ── Middle: brightness slider ──
+  local brightFrame = CreateFrame("Frame", nil, popup, BackdropTemplateMixin and "BackdropTemplate" or nil)
+  brightFrame:SetSize(BRIGHT_W, BRIGHT_H)
+  brightFrame:SetPoint("TOPLEFT", preview, "TOPRIGHT", GAP_H, 0)
+  brightFrame:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+  brightFrame:SetBackdropColor(0, 0, 0, 1)
+  brightFrame:SetBackdropBorderColor(0.25, 0.25, 0.30, 1)
+
+  -- brightness gradient steps (top = bright, bottom = dark)
+  local brightSteps = {}
+  local stepH = BRIGHT_H / BRIGHT_STEPS
+  for i = 0, BRIGHT_STEPS - 1 do
+    local t = CreateFrame("Button", nil, brightFrame)
+    t:SetSize(BRIGHT_W - 2, stepH)
+    t:SetPoint("TOPLEFT", brightFrame, "TOPLEFT", 1, -(1 + i * stepH))
+    local tex = t:CreateTexture(nil, "ARTWORK")
+    tex:SetAllPoints()
+    t._tex = tex
+    t._pct = 1.0 - (i / BRIGHT_STEPS)
+    brightSteps[i + 1] = t
+  end
+
+  local function UpdateBrightnessBar()
+    for _, s in ipairs(brightSteps) do
+      local p = s._pct
+      s._tex:SetColorTexture(baseR * p, baseG * p, baseB * p, 1)
+    end
+  end
+
+  -- brightness thumb — simple thin line with bright outline
+  local thumbBg = brightFrame:CreateTexture(nil, "OVERLAY", nil, 1)
+  thumbBg:SetHeight(6)
+  thumbBg:SetColorTexture(0, 0, 0, 1)
+
+  local thumbFill = brightFrame:CreateTexture(nil, "OVERLAY", nil, 2)
+  thumbFill:SetHeight(2)
+  thumbFill:SetColorTexture(1, 1, 1, 1)
+
+  local function UpdateBrightnessThumb()
+    local pct = 1.0 - brightness
+    local y = pct * (BRIGHT_H - 2)
+    thumbBg:ClearAllPoints()
+    thumbBg:SetPoint("TOPLEFT", brightFrame, "TOPLEFT", -1, -y + 2)
+    thumbBg:SetPoint("TOPRIGHT", brightFrame, "TOPRIGHT", 1, -y + 2)
+    thumbFill:ClearAllPoints()
+    thumbFill:SetPoint("TOPLEFT", brightFrame, "TOPLEFT", 0, -y)
+    thumbFill:SetPoint("TOPRIGHT", brightFrame, "TOPRIGHT", 0, -y)
+  end
+
+  for _, s in ipairs(brightSteps) do
+    s:SetScript("OnClick", function(self)
+      brightness = self._pct
+      UpdateBrightnessThumb()
+      ApplyColor()
+    end)
+  end
+
+  -- brightness drag
+  brightFrame:EnableMouse(true)
+  local brightDragging = false
+
+  local function SetBrightnessFromMouse()
+    local _, cy = GetCursorPosition()
+    cy = cy / UIParent:GetEffectiveScale()
+    local top = brightFrame:GetTop() or 0
+    local h = brightFrame:GetHeight()
+    if h <= 0 then return end
+    local pct = math.max(0, math.min(1, (top - cy) / h))
+    brightness = 1.0 - pct
+    UpdateBrightnessThumb()
+    ApplyColor()
+  end
+
+  brightFrame:SetScript("OnMouseDown", function()
+    brightDragging = true
+    SetBrightnessFromMouse()
+  end)
+  brightFrame:SetScript("OnMouseUp", function() brightDragging = false end)
+  brightFrame:SetScript("OnUpdate", function()
+    if brightDragging then SetBrightnessFromMouse() end
+  end)
+
+  -- ── Right: color grid ──
+  local gridAnchor = CreateFrame("Frame", nil, popup)
+  gridAnchor:SetSize(gridW, gridH)
+  gridAnchor:SetPoint("TOPLEFT", brightFrame, "TOPRIGHT", GAP_H, 0)
+
+  local swatches = {}
+  for i, c in ipairs(COLOR_PRESETS) do
+    local idx = i - 1
+    local col = idx % COLS
+    local row = math.floor(idx / COLS)
+    local sw = CreateFrame("Button", nil, gridAnchor, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    sw:SetSize(SSIZE, SSIZE)
+    sw:SetPoint("TOPLEFT", gridAnchor, "TOPLEFT",
+      col * (SSIZE + SPAD), -(row * (SSIZE + SPAD)))
+    sw:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+    sw:SetBackdropColor(c[1], c[2], c[3], 1)
+    sw:SetBackdropBorderColor(0.15, 0.15, 0.18, 1)
+    sw:SetScript("OnEnter", function(self) self:SetBackdropBorderColor(1, 1, 1, 0.8) end)
+    sw:SetScript("OnLeave", function(self) self:SetBackdropBorderColor(0.15, 0.15, 0.18, 1) end)
+    sw:SetScript("OnClick", function()
+      baseR, baseG, baseB = c[1], c[2], c[3]
+      brightness = 1.0
+      UpdateBrightnessBar()
+      UpdateBrightnessThumb()
+      ApplyColor()
+    end)
+    swatches[i] = sw
+  end
+
+  -- ── Hex input row ──
+  local hexRow = CreateFrame("Frame", nil, popup)
+  hexRow:SetSize(topRowW, 22)
+  hexRow:SetPoint("TOPLEFT", popup, "TOPLEFT", PAD, -(PAD + HEADER_H + GAP_H + gridH + GAP_H))
+
+  local hexLabel = hexRow:CreateFontString(nil, "OVERLAY")
+  M:SafeFont(hexLabel, 10, "OUTLINE")
+  hexLabel:SetPoint("LEFT", 0, 0)
+  hexLabel:SetText("#")
+  hexLabel:SetTextColor(unpack(T.MUTED))
+
+  local hexBox = CreateFrame("EditBox", nil, hexRow, BackdropTemplateMixin and "BackdropTemplate" or nil)
+  hexBox:SetHeight(22)
+  hexBox:SetPoint("LEFT", hexLabel, "RIGHT", 4, 0)
+  hexBox:SetPoint("RIGHT", hexRow, "RIGHT", 0, 0)
+  hexBox:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+  hexBox:SetBackdropColor(0.04, 0.04, 0.06, 0.80)
+  hexBox:SetBackdropBorderColor(unpack(T.BORDER))
+  hexBox:SetAutoFocus(false)
+  hexBox:SetJustifyH("CENTER")
+  hexBox:SetMaxLetters(6)
+  M:SafeFont(hexBox, 10, "OUTLINE")
+  hexBox:SetTextColor(unpack(T.TEXT))
+  popup._hexBox = hexBox
+
+  hexBox:SetScript("OnEnterPressed", function(self)
+    local r, g, b = HexToRGB(self:GetText())
+    if r then
+      baseR, baseG, baseB = r, g, b
+      brightness = 1.0
+      UpdateBrightnessBar()
+      UpdateBrightnessThumb()
+      ApplyColor()
+    end
+    self:ClearFocus()
+  end)
+  hexBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
+  -- ── Buttons row ──
+  local btnRow = CreateFrame("Frame", nil, popup)
+  btnRow:SetSize(topRowW, 22)
+  btnRow:SetPoint("TOPLEFT", hexRow, "BOTTOMLEFT", 0, -GAP_H)
+
+  local btnW = math.floor((topRowW - 4) / 2)
+
+  local okBtn = CreateFrame("Button", nil, btnRow, BackdropTemplateMixin and "BackdropTemplate" or nil)
+  okBtn:SetSize(btnW, 22)
+  okBtn:SetPoint("LEFT", btnRow, "LEFT", 0, 0)
+  okBtn:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+  okBtn:SetBackdropColor(unpack(T.BTN))
+  okBtn:SetBackdropBorderColor(unpack(T.BORDER))
+  local okLbl = okBtn:CreateFontString(nil, "OVERLAY")
+  M:SafeFont(okLbl, 10, "OUTLINE")
+  okLbl:SetPoint("CENTER")
+  okLbl:SetText("OK")
+  okLbl:SetTextColor(unpack(T.TEXT))
+  okBtn:SetScript("OnEnter", function(self) self:SetBackdropColor(unpack(T.BTN_HOVER)) end)
+  okBtn:SetScript("OnLeave", function(self) self:SetBackdropColor(unpack(T.BTN)) end)
+  okBtn:SetScript("OnClick", function() popup:Hide() end)
+
+  local resetBtn = CreateFrame("Button", nil, btnRow, BackdropTemplateMixin and "BackdropTemplate" or nil)
+  resetBtn:SetSize(btnW, 22)
+  resetBtn:SetPoint("RIGHT", btnRow, "RIGHT", 0, 0)
+  resetBtn:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+  resetBtn:SetBackdropColor(unpack(T.BTN))
+  resetBtn:SetBackdropBorderColor(unpack(T.BORDER))
+  local resetLbl = resetBtn:CreateFontString(nil, "OVERLAY")
+  M:SafeFont(resetLbl, 10, "OUTLINE")
+  resetLbl:SetPoint("CENTER")
+  resetLbl:SetText("Reset")
+  resetLbl:SetTextColor(unpack(T.TEXT))
+  resetBtn:SetScript("OnEnter", function(self) self:SetBackdropColor(unpack(T.BTN_HOVER)) end)
+  resetBtn:SetScript("OnLeave", function(self) self:SetBackdropColor(unpack(T.BTN)) end)
+  resetBtn:SetScript("OnClick", function()
+    if popup._onReset then popup._onReset() end
+  end)
+
+  popup:SetScript("OnHide", function()
+    if popup._onClose then popup._onClose() end
+    popup._onPick = nil
+    popup._onClose = nil
+    popup._onReset = nil
+  end)
+
+  -- expose internals for init
+  popup._setBase = function(r, g, b)
+    baseR, baseG, baseB = r, g, b
+    brightness = 1.0
+    UpdateBrightnessBar()
+    UpdateBrightnessThumb()
+  end
+
+  _colorPopup = popup
+  return popup
+end
+
 function BUILDERS.color(parent, spec, refreshFn)
   local cr, cg, cb = M:GetClassColor()
   local f = CreateFrame("Frame", nil, parent)
@@ -761,32 +1093,59 @@ function BUILDERS.color(parent, spec, refreshFn)
     local col = SpecGet(spec)
     if type(col) ~= "table" then col = { r = 1, g = 1, b = 1 } end
 
-    local prev = { r = col.r, g = col.g, b = col.b }
-    ColorPickerFrame:SetupColorPickerAndShow({
-      r = col.r or 1,
-      g = col.g or 1,
-      b = col.b or 1,
-      opacity = spec.hasAlpha and (1 - (col.a or 1)) or nil,
-      hasOpacity = spec.hasAlpha or false,
-      swatchFunc = function()
-        local r, g, b = ColorPickerFrame:GetColorRGB()
-        local tbl = SpecGet(spec) or {}
-        tbl.r, tbl.g, tbl.b = r, g, b
-        if spec.hasAlpha then
-          tbl.a = 1 - ColorPickerFrame:GetColorAlpha()
+    local popup = GetOrCreateColorPopup()
+    popup._preview:SetBackdropColor(col.r or 1, col.g or 1, col.b or 1, 1)
+    popup._hexBox:SetText(RGBToHex(col.r, col.g, col.b))
+    popup._setBase(col.r or 1, col.g or 1, col.b or 1)
+
+    popup._onPick = function(r, g, b)
+      local tbl = SpecGet(spec) or {}
+      tbl.r, tbl.g, tbl.b = r, g, b
+      SpecSet(spec, tbl)
+      UpdateVisual()
+      popup._preview:SetBackdropColor(r, g, b, 1)
+      popup._hexBox:SetText(RGBToHex(r, g, b))
+      if refreshFn then refreshFn() end
+    end
+
+    popup._onReset = function()
+      if not spec.db then return end
+      local parts = SplitPath(spec.db)
+      local def = BravLib.Storage.GetDefaults()
+      local val = def
+      for i = 1, #parts do
+        if type(val) ~= "table" then val = nil; break end
+        val = val[parts[i]]
+      end
+      if type(val) == "table" and val.r then
+        SpecSet(spec, { r = val.r, g = val.g, b = val.b })
+      else
+        -- no default exists — clear the custom color
+        local db = BravLib.Storage.GetDB()
+        if db then
+          local t = db
+          for i = 1, #parts - 1 do
+            if type(t[parts[i]]) ~= "table" then return end
+            t = t[parts[i]]
+          end
+          t[parts[#parts]] = nil
         end
-        SpecSet(spec, tbl)
-        UpdateVisual()
-        if refreshFn then refreshFn() end
-      end,
-      cancelFunc = function()
-        local tbl = SpecGet(spec) or {}
-        tbl.r, tbl.g, tbl.b = prev.r, prev.g, prev.b
-        SpecSet(spec, tbl)
-        UpdateVisual()
-        if refreshFn then refreshFn() end
-      end,
-    })
+      end
+      UpdateVisual()
+      local c = SpecGet(spec)
+      if type(c) == "table" and c.r then
+        popup._preview:SetBackdropColor(c.r, c.g, c.b, 1)
+        popup._hexBox:SetText(RGBToHex(c.r, c.g, c.b))
+      else
+        popup._preview:SetBackdropColor(1, 1, 1, 1)
+        popup._hexBox:SetText("FFFFFF")
+      end
+      if refreshFn then refreshFn() end
+    end
+
+    popup:ClearAllPoints()
+    popup:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    popup:Show()
   end)
 
   swatch:SetScript("OnEnter", function(self)

@@ -7,7 +7,7 @@ local CreateBarBackground  = U.CreateBarBackground
 local ApplyBG             = U.ApplyBG
 local AbbrevAny           = U.AbbrevForSetText
 
-local FONT_PATH = BravLib.Media.Get("font", "uf") or BravLib.Media.Get("font", "default") or STANDARD_TEXT_FONT
+local function FONT_PATH() return BravUI.Utils.GetFont() end
 
 -- ============================================================================
 -- CONFIG
@@ -139,13 +139,13 @@ local castNameText = castBar:CreateFontString(nil, "OVERLAY")
 castNameText:SetPoint("LEFT", castIcon, "RIGHT", 4, 0)
 castNameText:SetJustifyH("LEFT")
 castNameText:SetFontObject("GameFontHighlightSmall")
-pcall(function() castNameText:SetFont(FONT_PATH, 10, "OUTLINE") end)
+pcall(function() castNameText:SetFont(FONT_PATH(), 10, "OUTLINE") end)
 
 local castTimeText = castBar:CreateFontString(nil, "OVERLAY")
 castTimeText:SetPoint("RIGHT", castBar, "RIGHT", -4, 0)
 castTimeText:SetJustifyH("RIGHT")
 castTimeText:SetFontObject("GameFontHighlightSmall")
-pcall(function() castTimeText:SetFont(FONT_PATH, 10, "OUTLINE") end)
+pcall(function() castTimeText:SetFont(FONT_PATH(), 10, "OUTLINE") end)
 
 -- ============================================================================
 -- ICONS
@@ -160,6 +160,17 @@ local function ApplyFromDB()
   if InCombatLockdown() then return end
 
   local cfg = GetConfig() or {}
+
+  if cfg.enabled == false then f:Hide(); return end
+
+  local s = U.ClampNum(cfg.scale, 0.5, 2.0, 1.0)
+  f:SetScale(s)
+
+  local px = U.ClampNum(cfg.posX, -2000, 2000, 0)
+  local py = U.ClampNum(cfg.posY, -2000, 2000, -250)
+  f:ClearAllPoints()
+  f:SetPoint("CENTER", UIParent, "CENTER", px / s, py / s)
+
   local w   = cfg.width or DEFAULT_W
   f:SetWidth(w)
   hpFrame:SetWidth(w)
@@ -241,10 +252,20 @@ local cachedHP  = "?"
 local cachedPct = "?"
 
 local function RefreshTargetText()
-  pcall(function() hpNameText:SetText(UnitName("target") or "") end)
+  local nameCfg = GetTextConfig("name")
+  if nameCfg and nameCfg.enabled == false then
+    hpNameText:SetText("")
+  else
+    pcall(function() hpNameText:SetText(UnitName("target") or "") end)
+  end
 
-  local fmt   = "VALUE_PERCENT"
   local hpCfg = GetTextConfig("hp")
+  if hpCfg and hpCfg.enabled == false then
+    hpStatsText:SetText("")
+    return
+  end
+
+  local fmt = "VALUE_PERCENT"
   if hpCfg and hpCfg.format then fmt = hpCfg.format end
 
   pcall(function()
@@ -258,8 +279,10 @@ local function RefreshTargetText()
 end
 
 local function RefreshPowerText()
-  local pwrFmt = "VALUE"
   local pwrCfg = GetTextConfig("power")
+  if pwrCfg and pwrCfg.enabled == false then powerText:SetText(""); return end
+
+  local pwrFmt = "VALUE"
   if pwrCfg and pwrCfg.format then pwrFmt = pwrCfg.format end
 
   if pwrFmt == "NONE" then powerText:SetText(""); return end
@@ -397,6 +420,13 @@ end
 -- UPDATE
 -- ============================================================================
 local function Update()
+  local cfg = GetConfig() or {}
+  if cfg.enabled == false then
+    if not InCombatLockdown() then f:Hide() end
+    StopRangeCheck()
+    return
+  end
+
   if not UnitExists("target") then
     if not InCombatLockdown() then f:Hide() end
     StopRangeCheck()
@@ -408,8 +438,14 @@ local function Update()
     hp:SetStatusBarColor(0.4, 0.1, 0.1)
     power:SetMinMaxValues(0, 1); power:SetValue(0)
     power:SetStatusBarColor(0.2, 0.2, 0.2)
-    pcall(function() hpNameText:SetText(UnitName("target") or "") end)
-    hpStatsText:SetText("Mort")
+    local nameCfg = GetTextConfig("name")
+    if not nameCfg or nameCfg.enabled ~= false then
+      pcall(function() hpNameText:SetText(UnitName("target") or "") end)
+    end
+    local hpCfg = GetTextConfig("hp")
+    if not hpCfg or hpCfg.enabled ~= false then
+      hpStatsText:SetText("Mort")
+    end
     powerText:SetText("")
     U.UpdateRezIcon("target", rezHolder)
     wmHolder:Hide()

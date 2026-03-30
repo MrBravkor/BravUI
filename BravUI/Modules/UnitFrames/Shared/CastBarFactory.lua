@@ -16,7 +16,7 @@
 
 BravUI.CastBarFactory = {}
 
-local FONT_PATH = BravLib.Media.Get("font", "uf") or BravLib.Media.Get("font", "default") or STANDARD_TEXT_FONT
+local function FONT_PATH() return BravUI.Utils.GetFont() end
 local ICON_PAD  = 2
 
 local U                  = BravUI.Utils
@@ -155,8 +155,8 @@ function BravUI.CastBarFactory.Create(cfg)
 
     local ss = tonumber(c.spellSize) or DEF_SS
     local ts = tonumber(c.timeSize)  or DEF_TS
-    pcall(function() spellText:SetFont(FONT_PATH, ss, "OUTLINE") end)
-    pcall(function() timeText:SetFont( FONT_PATH, ts, "OUTLINE") end)
+    pcall(function() spellText:SetFont(FONT_PATH(), ss, "OUTLINE") end)
+    pcall(function() timeText:SetFont( FONT_PATH(), ts, "OUTLINE") end)
   end
 
   BravUI.Frames[cfg.frameName].SetCastLayout = function(opts)
@@ -273,11 +273,14 @@ function BravUI.CastBarFactory.Create(cfg)
     if not isCasting and not isChanneling then Stop(); return end
 
     castIsChannel         = isChanneling
-    castNotInterruptible  = notInterruptible and true or false
+    local niOk, niVal = pcall(function() return notInterruptible and true or false end)
+    castNotInterruptible  = niOk and niVal or false
     SetColors()
 
-    castStart = (startMS or 0) / 1000
-    castEnd   = (endMS   or 0) / 1000
+    local okS, sVal = pcall(function() return (startMS or 0) / 1000 end)
+    local okE, eVal = pcall(function() return (endMS   or 0) / 1000 end)
+    castStart = okS and sVal or 0
+    castEnd   = okE and eVal or 0
     castActive = true
 
     pcall(function() spellText:SetText(name or "") end)

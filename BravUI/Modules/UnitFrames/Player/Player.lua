@@ -190,13 +190,21 @@ local cachedHP  = "0"
 local cachedPct = "0%"
 
 local function RefreshHPText()
-  local name = UnitName("player") or ""
-  if name == "" then hpNameText:SetText(""); hpStatsText:SetText(""); return end
-  name = U.TruncateName(name, 10)
-  hpNameText:SetText(name)
+  local nameCfg = GetTextConfig("name")
+  if nameCfg and nameCfg.enabled == false then
+    hpNameText:SetText("")
+  else
+    local name = UnitName("player") or ""
+    hpNameText:SetText(name ~= "" and U.TruncateName(name, 10) or "")
+  end
 
-  local fmt    = "VALUE_PERCENT"
-  local hpCfg  = GetTextConfig("hp")
+  local hpCfg = GetTextConfig("hp")
+  if hpCfg and hpCfg.enabled == false then
+    hpStatsText:SetText("")
+    return
+  end
+
+  local fmt = "VALUE_PERCENT"
   if hpCfg and hpCfg.format then fmt = hpCfg.format end
 
   if     fmt == "VALUE"         then hpStatsText:SetText(cachedHP)
@@ -350,6 +358,18 @@ local function ApplyFromDB()
   if InCombatLockdown() then return end
 
   local cfg = GetConfig() or {}
+
+  if cfg.enabled == false then f:Hide(); return end
+  f:Show()
+
+  local s = U.ClampNum(cfg.scale, 0.5, 2.0, 1.0)
+  f:SetScale(s)
+
+  local px = U.ClampNum(cfg.posX, -2000, 2000, 0)
+  local py = U.ClampNum(cfg.posY, -2000, 2000, -200)
+  f:ClearAllPoints()
+  f:SetPoint("CENTER", UIParent, "CENTER", px / s, py / s)
+
   local w   = cfg.width or DEFAULT_W
   f:SetWidth(w)
   classPowerFrame:SetWidth(w)
@@ -415,6 +435,9 @@ end
 local function Update()
   local unit = "player"
   local cfg  = GetConfig() or {}
+
+  if cfg.enabled == false then f:Hide(); return end
+
   local showClassPowerOpt = cfg.showClassPower ~= false
 
   if not secondaryPowerType or not showClassPowerOpt then
@@ -444,8 +467,14 @@ local function Update()
     hp:SetStatusBarColor(0.4, 0.1, 0.1)
     power:SetMinMaxValues(0, 1); power:SetValue(0)
     power:SetStatusBarColor(0.2, 0.2, 0.2)
-    hpNameText:SetText(U.TruncateName(UnitName(unit) or "", 10))
-    hpStatsText:SetText("Mort")
+    local nameCfg = GetTextConfig("name")
+    if not nameCfg or nameCfg.enabled ~= false then
+      hpNameText:SetText(U.TruncateName(UnitName(unit) or "", 10))
+    end
+    local hpCfg = GetTextConfig("hp")
+    if not hpCfg or hpCfg.enabled ~= false then
+      hpStatsText:SetText("Mort")
+    end
     powerText:SetText("")
     U.UpdateRezIcon("player", rezHolder)
     wmHolder:Hide()
@@ -462,14 +491,17 @@ local function Update()
   power:SetMinMaxValues(0, maxP)
   power:SetValue(curP)
 
-  local pwrFmt = "VALUE"
   local pwrCfg = GetTextConfig("power")
-  if pwrCfg and pwrCfg.format then pwrFmt = pwrCfg.format end
-
-  if pwrFmt == "NONE" then
+  if pwrCfg and pwrCfg.enabled == false then
     powerText:SetText("")
   else
-    powerText:SetText(Abbrev(curP))
+    local pwrFmt = "VALUE"
+    if pwrCfg and pwrCfg.format then pwrFmt = pwrCfg.format end
+    if pwrFmt == "NONE" then
+      powerText:SetText("")
+    else
+      powerText:SetText(Abbrev(curP))
+    end
   end
 
   U.UpdateLeaderIcons("player", leaderIcon, assistIcon)
@@ -585,6 +617,7 @@ BravUI.Frames.Player  = {
   ApplyFromDB     = ApplyFromDB,
   Refresh         = function()
     ApplyFromDB()
+    RefreshHPText()
     UpdateColors()
     Update()
   end,

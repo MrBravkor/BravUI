@@ -16,7 +16,10 @@ local UNIT_MAP = {
 
 BravLib.Hooks.Register("APPLY_UNIT", function(which)
   local ns = BravUI.Frames and BravUI.Frames[UNIT_MAP[which]]
-  if ns and ns.ApplyFromDB then pcall(ns.ApplyFromDB) end
+  if not ns then return end
+  if ns.Refresh then pcall(ns.Refresh)
+  elseif ns.ApplyFromDB then pcall(ns.ApplyFromDB) end
+  if ns.RefreshAuras then pcall(ns.RefreshAuras) end
 end)
 
 BravLib.Hooks.Register("RESET_UNIT", function(which)
@@ -32,6 +35,11 @@ BravLib.Hooks.Register("APPLY_ALL", function()
   for _, ns in pairs(BravUI.Frames or {}) do
     if ns.ApplyFromDB then pcall(ns.ApplyFromDB) end
   end
+end)
+
+BravLib.Hooks.Register("APPLY_ACTIONBARS", function()
+  local mod = BravUI:GetModule("Misc.ActionBars")
+  if mod and mod.enabled and mod.Refresh then pcall(mod.Refresh, mod) end
 end)
 
 BravLib.Hooks.Register("APPLY_MINIMAP", function()

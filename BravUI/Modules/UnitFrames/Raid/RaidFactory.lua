@@ -182,10 +182,16 @@ function BravUI.RaidFactory.Create(cfg)
         hpNameText:SetText(""); hpStatsText:SetText("")
         return
       end
-      local name = UnitName(u)
-      if U.TruncateName then name = U.TruncateName(name, 8) end
-      hpNameText:SetText(name)
-      pcall(function() hpStatsText:SetText(AbbreviateNumbers(UnitHealth(u))) end)
+      local nameCfg = GetTextConfig("name")
+      if not nameCfg or nameCfg.enabled ~= false then
+        local name = UnitName(u)
+        if U.TruncateName then name = U.TruncateName(name, 8) end
+        hpNameText:SetText(name)
+      end
+      local hpCfg = GetTextConfig("hp")
+      if not hpCfg or hpCfg.enabled ~= false then
+        pcall(function() hpStatsText:SetText(AbbreviateNumbers(UnitHealth(u))) end)
+      end
     end
 
     function f:ApplyLayout()
@@ -237,9 +243,17 @@ function BravUI.RaidFactory.Create(cfg)
         self:SetAlpha(0.4)
         hp:SetMinMaxValues(0, 1); hp:SetValue(0); hp:SetStatusBarColor(0.3, 0.3, 0.3)
         power:SetMinMaxValues(0, 1); power:SetValue(0); power:SetStatusBarColor(0.2, 0.2, 0.2)
-        local name = UnitName(u)
-        if U.TruncateName then name = U.TruncateName(name, 8) end
-        hpNameText:SetText(name); hpStatsText:SetText("Déconnecté"); powerText:SetText("")
+        local nameCfg = GetTextConfig("name")
+        if not nameCfg or nameCfg.enabled ~= false then
+          local name = UnitName(u)
+          if U.TruncateName then name = U.TruncateName(name, 8) end
+          hpNameText:SetText(name)
+        end
+        local hpCfg = GetTextConfig("hp")
+        if not hpCfg or hpCfg.enabled ~= false then
+          hpStatsText:SetText("Déconnecté")
+        end
+        powerText:SetText("")
         roleHolder:Hide(); leaderIcon:Hide(); assistIcon:Hide()
         rezHolder:Hide(); wmHolder:Hide()
         return
@@ -249,9 +263,17 @@ function BravUI.RaidFactory.Create(cfg)
         self:SetAlpha(0.6)
         hp:SetMinMaxValues(0, 1); hp:SetValue(0); hp:SetStatusBarColor(0.4, 0.1, 0.1)
         power:SetMinMaxValues(0, 1); power:SetValue(0); power:SetStatusBarColor(0.2, 0.2, 0.2)
-        local name = UnitName(u)
-        if U.TruncateName then name = U.TruncateName(name, 8) end
-        hpNameText:SetText(name); hpStatsText:SetText("Mort"); powerText:SetText("")
+        local nameCfg = GetTextConfig("name")
+        if not nameCfg or nameCfg.enabled ~= false then
+          local name = UnitName(u)
+          if U.TruncateName then name = U.TruncateName(name, 8) end
+          hpNameText:SetText(name)
+        end
+        local hpCfg = GetTextConfig("hp")
+        if not hpCfg or hpCfg.enabled ~= false then
+          hpStatsText:SetText("Mort")
+        end
+        powerText:SetText("")
         roleHolder:Hide(); leaderIcon:Hide(); assistIcon:Hide()
         U.UpdateRezIcon(u, rezHolder); wmHolder:Hide()
         return
@@ -267,7 +289,12 @@ function BravUI.RaidFactory.Create(cfg)
         power:SetMinMaxValues(0, UnitPowerMax(u))
         power:SetValue(UnitPower(u))
       end)
-      powerText:SetText(Abbrev(UnitPower(u)))
+      local pwrCfg = GetTextConfig("power")
+      if pwrCfg and pwrCfg.enabled == false then
+        powerText:SetText("")
+      else
+        powerText:SetText(Abbrev(UnitPower(u)))
+      end
 
       local colorCfg = GetColorConfig()
       U.UpdateHPColor(u, hp, colorCfg)
@@ -402,11 +429,12 @@ function BravUI.RaidFactory.Create(cfg)
     if InCombatLockdown() then return end
     local c = GetConfig() or {}
 
-    container:SetScale(ClampNum(c.scale, 0.5, 2.0, 1.0))
+    local raidScale = ClampNum(c.scale, 0.5, 2.0, 1.0)
+    container:SetScale(raidScale)
     container:ClearAllPoints()
     container:SetPoint("CENTER", UIParent, "CENTER",
-      ClampNum(c.posX, -2000, 2000, -350),
-      ClampNum(c.posY, -2000, 2000, -200))
+      ClampNum(c.posX, -2000, 2000, -350) / raidScale,
+      ClampNum(c.posY, -2000, 2000, -200) / raidScale)
 
     local columns    = c.columns    or defColumns
     local spacing    = c.spacing    or DEF_SPACING

@@ -59,10 +59,36 @@ M:RegisterPage("minimap", 6, L["page_minimap"] or "Minimap", {
     end },
   { type = "slider", db = "minimap.opacity",
     label = L["mm_bg_opacity"], min = 0, max = 1, step = 0.05, decimals = 2 },
-  { type = "slider", db = "minimap.x",
-    label = L["mm_offset_x"], min = -2560, max = 2560, step = 1 },
-  { type = "slider", db = "minimap.y",
-    label = L["mm_offset_y"], min = -1440, max = 1440, step = 1 },
+  { type = "slider", label = L["mm_offset_x"], min = -2560, max = 2560, step = 1,
+    get = function()
+      local pos = BravLib.API.Get("positions", "Minimap")
+      if pos and pos.x then return pos.x end
+      local d = GetDB(); return d and d.x or -30
+    end,
+    set = function(v)
+      local db = BravLib.Storage.GetDB()
+      if db then
+        db.positions = db.positions or {}
+        db.positions.Minimap = db.positions.Minimap or {}
+        db.positions.Minimap.x = v
+      end
+      RefreshMinimap()
+    end },
+  { type = "slider", label = L["mm_offset_y"], min = -1440, max = 1440, step = 1,
+    get = function()
+      local pos = BravLib.API.Get("positions", "Minimap")
+      if pos and pos.y then return pos.y end
+      local d = GetDB(); return d and d.y or -30
+    end,
+    set = function(v)
+      local db = BravLib.Storage.GetDB()
+      if db then
+        db.positions = db.positions or {}
+        db.positions.Minimap = db.positions.Minimap or {}
+        db.positions.Minimap.y = v
+      end
+      RefreshMinimap()
+    end },
 
   -- ═══ ICONES ═══
   { type = "header", label = L["mm_hdr_icons"] },

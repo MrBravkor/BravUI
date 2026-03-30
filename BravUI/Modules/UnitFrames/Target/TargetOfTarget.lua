@@ -15,8 +15,9 @@ BravUI.SimpleFrameFactory.Create({
   defaultHpH   = 22,
   defaultPwrH  = 8,
   textSizes    = { name = 11, hp = 11, pwr = 9 },
-  throttleRate = 0.05,
-  deadText     = "Mort",
+  throttleRate    = 0.05,
+  deadText        = "Mort",
+  allowReaction   = true,
 
   previewName     = "Mob",
   previewHp       = 45,

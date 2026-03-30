@@ -5,7 +5,7 @@
 BravUI.Frames       = BravUI.Frames or {}
 BravUI.Frames.Group = BravUI.Frames.Group or {}
 
-local FONT_PATH = BravLib.Media.Get("font", "uf") or BravLib.Media.Get("font", "default") or STANDARD_TEXT_FONT
+local function FONT_PATH() return BravUI.Utils.GetFont() end
 
 local U                  = BravUI.Utils
 local Create1pxBorder    = U.Create1pxBorder
@@ -85,7 +85,7 @@ local function CreatePartyCastBar(index)
   local spellText = bar:CreateFontString(nil, "OVERLAY")
   spellText:SetPoint("LEFT", bar, "LEFT", 4, 0)
   spellText:SetJustifyH("LEFT")
-  pcall(function() spellText:SetFont(FONT_PATH, 8, "OUTLINE") end)
+  pcall(function() spellText:SetFont(FONT_PATH(), 8, "OUTLINE") end)
   spellText:SetTextColor(1, 1, 1, 0.9)
   castFrame.SpellText = spellText
 

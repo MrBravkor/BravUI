@@ -246,12 +246,18 @@ local function CreatePartyMember(i)
 
   local function RefreshHPText()
     if previewMode then return end
-    local name = UnitName(f.unit)
-    if U.TruncateName then name = U.TruncateName(name, 10) end
-    hpNameText:SetText(name)
-    pcall(function()
-      hpStatsText:SetText((f.__hp_k or "?") .. " | " .. (f.__hp_pct or "?"))
-    end)
+    local nameCfg = GetTextConfig("name")
+    if not nameCfg or nameCfg.enabled ~= false then
+      local name = UnitName(f.unit)
+      if U.TruncateName then name = U.TruncateName(name, 10) end
+      hpNameText:SetText(name)
+    end
+    local hpCfg = GetTextConfig("hp")
+    if not hpCfg or hpCfg.enabled ~= false then
+      pcall(function()
+        hpStatsText:SetText((f.__hp_k or "?") .. " | " .. (f.__hp_pct or "?"))
+      end)
+    end
   end
 
   local function PullPercentFromBlizzard()
@@ -381,10 +387,16 @@ local function CreatePartyMember(i)
       self:SetAlpha(0.4)
       hp:SetMinMaxValues(0, 1); hp:SetValue(0); hp:SetStatusBarColor(0.3, 0.3, 0.3)
       power:SetMinMaxValues(0, 1); power:SetValue(0); power:SetStatusBarColor(0.2, 0.2, 0.2)
-      local name = UnitName(u)
-      if U.TruncateName then name = U.TruncateName(name, 10) end
-      hpNameText:SetText(name)
-      hpStatsText:SetText("Déconnecté")
+      local nameCfg = GetTextConfig("name")
+      if not nameCfg or nameCfg.enabled ~= false then
+        local name = UnitName(u)
+        if U.TruncateName then name = U.TruncateName(name, 10) end
+        hpNameText:SetText(name)
+      end
+      local hpCfg = GetTextConfig("hp")
+      if not hpCfg or hpCfg.enabled ~= false then
+        hpStatsText:SetText("Déconnecté")
+      end
       powerText:SetText("")
       classPower:Hide(); roleHolder:Hide(); leaderIcon:Hide(); assistIcon:Hide()
       rezHolder:Hide(); wmHolder:Hide()
@@ -395,10 +407,16 @@ local function CreatePartyMember(i)
       self:SetAlpha(0.6)
       hp:SetMinMaxValues(0, 1); hp:SetValue(0); hp:SetStatusBarColor(0.4, 0.1, 0.1)
       power:SetMinMaxValues(0, 1); power:SetValue(0); power:SetStatusBarColor(0.2, 0.2, 0.2)
-      local name = UnitName(u)
-      if U.TruncateName then name = U.TruncateName(name, 10) end
-      hpNameText:SetText(name)
-      hpStatsText:SetText("Mort")
+      local nameCfg = GetTextConfig("name")
+      if not nameCfg or nameCfg.enabled ~= false then
+        local name = UnitName(u)
+        if U.TruncateName then name = U.TruncateName(name, 10) end
+        hpNameText:SetText(name)
+      end
+      local hpCfg = GetTextConfig("hp")
+      if not hpCfg or hpCfg.enabled ~= false then
+        hpStatsText:SetText("Mort")
+      end
       powerText:SetText("")
       classPower:Hide(); roleHolder:Hide(); leaderIcon:Hide(); assistIcon:Hide()
       U.UpdateRezIcon(u, rezHolder); wmHolder:Hide()
@@ -419,7 +437,12 @@ local function CreatePartyMember(i)
       power:SetMinMaxValues(0, UnitPowerMax(u))
       power:SetValue(UnitPower(u))
     end)
-    powerText:SetText(Abbrev(UnitPower(u)))
+    local pwrCfg = GetTextConfig("power")
+    if pwrCfg and pwrCfg.enabled == false then
+      powerText:SetText("")
+    else
+      powerText:SetText(Abbrev(UnitPower(u)))
+    end
 
     local colorCfg = GetColorConfig()
     U.UpdateHPColor(u, hp, colorCfg)
@@ -706,7 +729,7 @@ local function SetPreviewMode(enabled)
     local posY  = ClampNum(cfg.posY,  -2000, 2000, -200)
     container:SetScale(scale)
     container:ClearAllPoints()
-    container:SetPoint("CENTER", UIParent, "CENTER", posX, posY)
+    container:SetPoint("CENTER", UIParent, "CENTER", posX / scale, posY / scale)
 
     SyncAllClickOverlays()
   else

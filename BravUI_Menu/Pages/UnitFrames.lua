@@ -228,7 +228,6 @@ local function BuildSpecs(key, onRefresh)
   -- ═══ GENERAL ═══
   ins({ type = "header", label = L["uf_hdr_general"] })
   ins({ type = "toggle", db = pre .. "enabled", label = L["uf_enable"] })
-  ins({ type = "toggle", db = pre .. "locked",  label = L["uf_lock"] })
   ins({ type = "slider", db = pre .. "scale",   label = L["uf_scale"],
     min = 0.50, max = 2.00, step = 0.05, decimals = 2 })
   ins({ type = "slider", db = pre .. "posX", label = L["uf_pos_x"],
@@ -237,8 +236,6 @@ local function BuildSpecs(key, onRefresh)
     min = -2000, max = 2000, step = 1 })
 
   local actionBtns = {
-    { label = L["uf_btn_capture"],
-      onClick = function() CapturePosition(key, onRefresh) end },
     { label = L["uf_btn_reset"],
       onClick = function() ResetUnit(key, onRefresh) end },
   }
@@ -265,7 +262,7 @@ local function BuildSpecs(key, onRefresh)
     local function ci(s) cc[#cc + 1] = s end
 
     if cap.hp then
-      ci({ type = "header", label = "[ " .. L["uf_group_hp"] .. " ]" })
+      ci({ type = "header", label =  L["uf_group_hp"]  })
       ci({ type = "radio_toggle", db = pre .. "colors.useClassColor",
         values = {
           { text = "Utilisez la couleur de classe",         value = true },
@@ -303,7 +300,7 @@ local function BuildSpecs(key, onRefresh)
     end
 
     if cap.power then
-      ci({ type = "header", label = "[ " .. L["uf_group_energy"] .. " ]" })
+      ci({ type = "header", label =  L["uf_group_energy"]  })
       ci({ type = "radio_toggle", db = pre .. "colors.usePowerColor",
         values = {
           { text = "Utilisez la couleur de puissance",      value = true },
@@ -318,7 +315,7 @@ local function BuildSpecs(key, onRefresh)
     end
 
     if cap.showClassPower or cap.classPower then
-      ci({ type = "header", label = "[ " .. (L["uf_group_class_power"] or "Barre de classe") .. " ]" })
+      ci({ type = "header", label =  (L["uf_group_class_power"] or "Barre de classe")  })
       ci({ type = "radio_toggle", db = pre .. "colors.useClassColorCP",
         values = {
           { text = "Utilisez la couleur de classe",         value = true },
@@ -332,6 +329,17 @@ local function BuildSpecs(key, onRefresh)
         end })
     end
 
+    ci({ type = "divider" })
+    ci({ type = "button", label = L["uf_btn_reset"] or "Reset",
+      onClick = function()
+        local db = BravLib.Storage.GetDB()
+        local def = BravLib.Storage.GetDefaults()
+        if db and db.unitframes and def and def.unitframes and def.unitframes[key] then
+          db.unitframes[key].colors = BravLib.CopyTable(def.unitframes[key].colors or {})
+        end
+        if onRefresh then onRefresh() end
+      end })
+
     ins({ type = "group", label = L["uf_hdr_color"], collapsed = true, children = cc })
   end
 
@@ -341,7 +349,7 @@ local function BuildSpecs(key, onRefresh)
     local function si(s) sc[#sc + 1] = s end
 
     if cap.hp then
-      si({ type = "header", label = "[ " .. L["uf_group_hp"] .. " ]" })
+      si({ type = "header", label =  L["uf_group_hp"]  })
       si({ type = "slider", db = pre .. "width", label = L["uf_width"],
         min = 50, max = 500, step = 1 })
       si({ type = "slider", db = pre .. "height.hp", label = L["uf_height_hp"],
@@ -349,7 +357,7 @@ local function BuildSpecs(key, onRefresh)
     end
 
     if cap.power then
-      si({ type = "header", label = "[ " .. L["uf_group_energy"] .. " ]" })
+      si({ type = "header", label =  L["uf_group_energy"]  })
       if cap.showPower then
         si({ type = "toggle", db = pre .. "showPower", label = L["uf_show_power"] })
       end
@@ -358,7 +366,7 @@ local function BuildSpecs(key, onRefresh)
     end
 
     if cap.showClassPower or cap.classPower then
-      si({ type = "header", label = "[ " .. (L["uf_group_class_power"] or "Barre de classe") .. " ]" })
+      si({ type = "header", label =  (L["uf_group_class_power"] or "Barre de classe")  })
       if cap.showClassPower then
         si({ type = "toggle", db = pre .. "showClassPower", label = L["uf_show_class_power"] })
       end
@@ -377,7 +385,7 @@ local function BuildSpecs(key, onRefresh)
     local function ti(s) tc[#tc + 1] = s end
 
     if cap.hp then
-      ti({ type = "header", label = "[ " .. L["uf_group_hp"] .. " ]" })
+      ti({ type = "header", label =  L["uf_group_hp"]  })
       ti({ type = "toggle", db = pre .. "text.name.enabled",   label = L["uf_name_enable"] })
       ti({ type = "anchor_grid", db = pre .. "text.name.anchor", label = L["uf_name_anchor"] })
       ti({ type = "slider", db = pre .. "text.name.size",
@@ -406,7 +414,7 @@ local function BuildSpecs(key, onRefresh)
     end
 
     if cap.power then
-      ti({ type = "header", label = "[ " .. L["uf_group_energy"] .. " ]" })
+      ti({ type = "header", label =  L["uf_group_energy"]  })
       ti({ type = "toggle", db = pre .. "text.power.enabled",     label = L["uf_power_enable"] })
       ti({ type = "anchor_grid", db = pre .. "text.power.anchor", label = L["uf_power_anchor"] })
       ti({ type = "slider", db = pre .. "text.power.size",
@@ -427,7 +435,7 @@ local function BuildSpecs(key, onRefresh)
     if cap.hpBgKeys then
       for _, bgKey in ipairs(cap.hpBgKeys) do
         local bgPre = pre .. "backgrounds." .. bgKey .. "."
-        fi({ type = "header", label = "[ " .. L["uf_group_hp"] .. " ]" })
+        fi({ type = "header", label =  L["uf_group_hp"]  })
         fi({ type = "toggle", db = bgPre .. "enabled", label = L["uf_suffix_enable"] })
         fi({ type = "slider", db = bgPre .. "alpha",
           label = L["uf_suffix_opacity"], min = 0, max = 1, step = 0.05, decimals = 2 })
@@ -441,7 +449,7 @@ local function BuildSpecs(key, onRefresh)
         if bgKey == "power" then
           local bgPre = pre .. "backgrounds." .. bgKey .. "."
           local bgL = ENERGY_BG_LABELS[bgKey] or bgKey
-          fi({ type = "header", label = "[ " .. L["uf_group_energy"] .. " ]" })
+          fi({ type = "header", label =  L["uf_group_energy"]  })
           fi({ type = "toggle", db = bgPre .. "enabled",
             label = bgL .. " - " .. L["uf_suffix_enable"] })
           fi({ type = "slider", db = bgPre .. "alpha",
@@ -456,7 +464,7 @@ local function BuildSpecs(key, onRefresh)
         if bgKey == "classPower" or bgKey == "segments" then
           local bgPre = pre .. "backgrounds." .. bgKey .. "."
           local bgL = ENERGY_BG_LABELS[bgKey] or bgKey
-          fi({ type = "header", label = "[ " .. (L["uf_group_class_power"] or "Barre de classe") .. " ]" })
+          fi({ type = "header", label =  (L["uf_group_class_power"] or "Barre de classe")  })
           fi({ type = "toggle", db = bgPre .. "enabled",
             label = bgL .. " - " .. L["uf_suffix_enable"] })
           fi({ type = "slider", db = bgPre .. "alpha",
@@ -481,11 +489,11 @@ local function BuildSpecs(key, onRefresh)
 
     ci({ type = "toggle", db = cp .. "enabled", label = L["uf_cast_enable"] })
 
-    ci({ type = "header", label = "[ " .. L["uf_hdr_color"] .. " ]" })
+    ci({ type = "header", label =  L["uf_hdr_color"]  })
     ci({ type = "color", db = cp .. "colors.normal",           label = L["uf_cast_normal"] })
     ci({ type = "color", db = cp .. "colors.notInterruptible", label = L["uf_cast_not_interrupt"] })
 
-    ci({ type = "header", label = "[ " .. L["uf_hdr_size"] .. " ]" })
+    ci({ type = "header", label =  L["uf_hdr_size"]  })
     ci({ type = "slider", db = cp .. "w",
       label = L["uf_cast_width"], min = 50, max = 500, step = 1 })
     ci({ type = "slider", db = cp .. "h",
@@ -497,14 +505,14 @@ local function BuildSpecs(key, onRefresh)
     ci({ type = "slider", db = cp .. "y",
       label = L["uf_cast_offset_y"], min = -200, max = 200, step = 1 })
 
-    ci({ type = "header", label = "[ " .. L["uf_hdr_text"] .. " ]" })
+    ci({ type = "header", label =  L["uf_hdr_text"]  })
     ci({ type = "slider", db = cp .. "spellSize",
       label = L["uf_cast_spell_size"], min = 6, max = 20, step = 1 })
     ci({ type = "slider", db = cp .. "timeSize",
       label = L["uf_cast_time_size"], min = 6, max = 20, step = 1 })
 
     if cap.castBgKeys then
-      ci({ type = "header", label = "[ " .. L["uf_hdr_bg"] .. " ]" })
+      ci({ type = "header", label =  L["uf_hdr_bg"]  })
       for _, bgKey in ipairs(cap.castBgKeys) do
         local bgPre = pre .. "backgrounds." .. bgKey .. "."
         ci({ type = "toggle", db = bgPre .. "enabled", label = L["uf_suffix_enable"] })
@@ -565,7 +573,7 @@ local function BuildSpecs(key, onRefresh)
   -- ═══ AURAS ═══
   if cap.auras then
     local ac = {}
-    ac[#ac + 1] = { type = "header", label = "[ " .. L["uf_hdr_buffs"] .. " ]" }
+    ac[#ac + 1] = { type = "header", label =  L["uf_hdr_buffs"]  }
     ac[#ac + 1] = { type = "toggle", db = pre .. "buffs.enabled",
       label = L["uf_buffs_enable"] }
     ac[#ac + 1] = { type = "toggle", db = pre .. "buffs.combatOnly",
@@ -584,7 +592,7 @@ local function BuildSpecs(key, onRefresh)
         { value = "UP",    text = L["uf_dir_up"] },
       }}
     ac[#ac + 1] = { type = "divider" }
-    ac[#ac + 1] = { type = "header", label = "[ " .. L["uf_hdr_debuffs"] .. " ]" }
+    ac[#ac + 1] = { type = "header", label =  L["uf_hdr_debuffs"]  }
     ac[#ac + 1] = { type = "toggle", db = pre .. "debuffs.enabled",
       label = L["uf_debuffs_enable"] }
     ac[#ac + 1] = { type = "slider", db = pre .. "debuffs.count",
