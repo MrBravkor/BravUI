@@ -374,6 +374,19 @@ function Storage.GetSpecProfile(specIndex)
 end
 
 -- ============================================================================
+-- CHAR-LEVEL DATA (not affected by profile switching)
+-- ============================================================================
+
+function Storage.GetCharDB()
+    if not db then return nil end
+    local key = GetCharKey()
+    if not key then return nil end
+    db.charData = db.charData or {}
+    db.charData[key] = db.charData[key] or {}
+    return db.charData[key]
+end
+
+-- ============================================================================
 -- PROFILE MODE (global vs perChar)
 -- ============================================================================
 

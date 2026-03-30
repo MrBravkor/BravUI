@@ -42,6 +42,16 @@ BravLib.Hooks.Register("APPLY_ACTIONBARS", function()
   if mod and mod.enabled and mod.Refresh then pcall(mod.Refresh, mod) end
 end)
 
+BravLib.Hooks.Register("APPLY_CHAT", function()
+  local mod = BravUI:GetModule("Interface.Chat")
+  if mod and mod.enabled and mod.Refresh then pcall(mod.Refresh, mod) end
+end)
+
+BravLib.Hooks.Register("APPLY_INFOBAR", function()
+  local mod = BravUI:GetModule("Interface.Chat")
+  if mod and mod.enabled and mod.RefreshInfoBar then pcall(mod.RefreshInfoBar, mod) end
+end)
+
 BravLib.Hooks.Register("APPLY_MINIMAP", function()
   local mod = BravUI:GetModule("Interface.Minimap")
   if mod and mod.enabled and mod.Refresh then pcall(mod.Refresh, mod) end
@@ -83,9 +93,7 @@ local function ApplyHideBlizzardUI()
   end
 end
 
-BravLib.Event.Register("PLAYER_ENTERING_WORLD", function()
-  C_Timer.After(1, ApplyHideBlizzardUI)
-end)
+BravLib.Event.Register("PLAYER_ENTERING_WORLD", ApplyHideBlizzardUI)
 
 function BravUI:LoadModules()
     for name, module in pairs(self.modules) do

@@ -2,6 +2,39 @@
 
 ---
 
+## [2.0.5-alpha] — 30/03/2026
+
+Module Chat & InfoBar complet, fix du flash UI Blizzard.
+
+### Module Chat
+
+- Port complet v1 vers v2 — fichier unique sans dépendances externes
+- Skinning complet du panel : onglets, editbox avec curseur custom, bordure par canal
+- Système d'onglets intelligent : tabs permanents + temporaires (whispers), dropdown overflow
+- Flash des onglets sur whisper entrant avec pulsation colorée
+- Historique whispers par personnage (`/bravchat`)
+
+### InfoBar
+
+- Mode docked au panel Chat : Spec/Talent, Or, Durabilité, FPS/MS
+- Mode standalone : cadre indépendant déplaçable via le Move system
+
+### Menu
+
+- Page Chat complète : général, apparence, police, taille, reset
+
+### Core
+
+- `BravLib.Storage.GetCharDB()` — données par personnage, indépendant des profils
+- Hooks `APPLY_CHAT` et `APPLY_INFOBAR` dans `Core/Load.lua`
+- Defaults `chat` + `infobar` + positions dans `Core/Init.lua`
+
+### Corrections
+
+- Flash des frames Blizzard (UnitFrames + Chat) au login/reload — masquage désormais instantané
+
+---
+
 ## [2.0.4-alpha] — 30/03/2026
 
 Module ActionBars complet, corrections menu UnitFrames, fix Midnight secrets.

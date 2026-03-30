@@ -1,7 +1,7 @@
 ---@class BravUI
 BravUI = BravUI or {}
 
-BravUI.version = "2.0.3-alpha"
+BravUI.version = "2.0.5-alpha"
 BravUI.modules = {}
 
 local defaults = {
@@ -28,6 +28,8 @@ local defaults = {
         ["Barre 8"]   = { x = 0,   y = -640 },
         Familiers      = { x = 0,   y = -680 },
         Postures       = { x = 0,   y = -720 },
+        ["Panneau Chat"] = { x = -735, y = -430 },
+        ["InfoBar"]      = { x = 0,    y = 390 },
     },
     minimap = {
         enabled          = true,
@@ -376,6 +378,34 @@ local defaults = {
                 hp    = { enabled = false, size = 9,  offsetX = -3, offsetY = 0 },
                 power = { enabled = false, size = 8 },
             },
+        },
+    },
+    chat = {
+        enabled = true,
+        locked = true,
+        panelWidth = 450,
+        panelHeight = 220,
+        opacity = 0.75,
+        tabOpacity = 0.85,
+        fontSize = 12,
+        tabFontSize = 12,
+        tabHeight = 15,
+        useClassColor = false,
+        tabTextColor = { r = 1, g = 1, b = 1 },
+        useClassColorActive = true,
+        activeTabTextColor = { r = 1, g = 1, b = 1 },
+        showTabUnderline = true,
+        fadeTabs = false,
+        fadeTabsAlpha = 0.45,
+        editBoxBorderByChannel = true,
+        infobar = {
+            height = 22,
+            opacity = 0.75,
+            fontSize = 11,
+            showSpec = true,
+            showGold = true,
+            showDurability = true,
+            showPerf = true,
         },
     },
     actionbars = {
