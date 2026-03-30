@@ -1,7 +1,7 @@
 ---@class BravUI
 BravUI = BravUI or {}
 
-BravUI.version = "2.0.5-alpha"
+BravUI.version = "2.0.6-alpha"
 BravUI.modules = {}
 
 local defaults = {
@@ -30,6 +30,8 @@ local defaults = {
         Postures       = { x = 0,   y = -720 },
         ["Panneau Chat"] = { x = -735, y = -430 },
         ["InfoBar"]      = { x = 0,    y = 390 },
+        ["Meter Panel"]  = { x = 200,  y = -300 },
+        ["Timer M+"]     = { x = 0,    y = 200 },
     },
     minimap = {
         enabled          = true,
@@ -418,6 +420,25 @@ local defaults = {
         showCooldownText = true,
         bars             = {},
     },
+    meter = {
+        enabled        = true,
+        barHeight      = 16,
+        barSpacing     = 1,
+        fontSize       = 9,
+        showRank       = true,
+        showPercent    = true,
+        classColors    = true,
+        maxBars        = 50,
+        layout         = 2,
+        panelWidth     = 440,
+        panelHeight    = 223,
+        opacity        = 0.75,
+        tabHeight      = 15,
+        windowOpacity  = 0.8,
+        timerEnabled   = true,
+        summaryEnabled = true,
+        timerScale     = 1.0,
+    },
 }
 
 local function OnAddonLoaded(event, addonName)
@@ -472,6 +493,14 @@ SLASH_BRAVDEBUG1 = "/bravdebug"
 SlashCmdList["BRAVDEBUG"] = function()
     BravLib.debug = not BravLib.debug
     BravLib.Print("Debug mode: " .. (BravLib.debug and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
+end
+
+SLASH_BRAVMETER1 = "/bd"
+SLASH_BRAVMETER2 = "/bravmeter"
+SlashCmdList["BRAVMETER"] = function(msg)
+    if BravUI.Meter and BravUI.Meter.HandleSlash then
+        BravUI.Meter:HandleSlash(msg)
+    end
 end
 
 -- ============================================================================

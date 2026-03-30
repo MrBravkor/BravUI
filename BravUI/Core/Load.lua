@@ -64,6 +64,11 @@ BravLib.Hooks.Register("RESET_MINIMAP", function()
   BravLib.Hooks.Fire("APPLY_MINIMAP")
 end)
 
+BravLib.Hooks.Register("APPLY_METER", function()
+  local mod = BravUI:GetModule("Interface.Meter")
+  if mod and mod.enabled and mod.Refresh then pcall(mod.Refresh, mod) end
+end)
+
 BravLib.Hooks.Register("APPLY_FONT", function()
   -- Les modules qui gèrent la police écoutent ce hook directement
 end)

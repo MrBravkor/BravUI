@@ -2,6 +2,44 @@
 
 ---
 
+## [2.0.6-alpha] — 31/03/2026
+
+Module Meter (DPS/HPS) porte en v2, tracker M+ complet, BravLib.Format et BravLib.DamageMeter.
+
+### Module Meter
+
+- Port complet v1 vers v2 — module integre (ex-BravUI_Meter standalone)
+- Factory barres DPS/HPS avec tooltips, detail window, animation lerp
+- Panel conteneur avec layouts 1/2/3/4 fenetres, tabs mode-switching
+- Menus segment, partage en chat, reset
+- Test data via `/bd test` (barres animees)
+- Slash commands `/bd` et `/bravmeter`
+
+### Tracker M+
+
+- Encounters, deaths, loot, CC par joueur
+- Timer live avec barres de progression +3/+2/+1
+- Summary post-run : header, timeline boss, tableau joueurs, loot
+
+### Core
+
+- **`BravLib.Format`** : formatage partage (Number, Time, SafeFormat secret-safe, MakeFont, MakeSep)
+- **`BravLib.DamageMeter`** : wrapper C_DamageMeter (GetSorted, GetSpellBreakdown, GetSegments, Reset)
+- Hook `APPLY_METER` dans `Core/Load.lua`
+- Defaults `meter` + positions dans `Core/Init.lua`
+
+### Suppressions
+
+- AugTracker (traqueur buffs Aug Evoker) — retire du port v2
+
+### Corrections
+
+- Flash des frames Blizzard (UnitFrames + Chat) au login/reload — masquage instantane
+- MPlus crash `GetCriteriaInfo` nil — API migree de `C_Scenario` vers `C_ScenarioInfo` (Midnight)
+- MPlus `table index is secret` — `entry.guid` de `C_DamageMeter` secret en combat
+
+---
+
 ## [2.0.5-alpha] — 30/03/2026
 
 Module Chat & InfoBar complet, fix du flash UI Blizzard.

@@ -2,7 +2,7 @@
 ## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r
 ## Notes: Core UI replacement
 ## Author: Bravkor
-## Version: 2.0.5-alpha
+## Version: 2.0.6-alpha
 ## Group: BravUI
 ## Dependencies: BravUI_Lib
 ## SavedVariables: BravUI_DB
@@ -20,3 +20,7 @@ Modules/Interface/Minimap.lua
 Modules/Misc/VehicleExit.lua
 Modules/ActionBars/ActionBars.lua
 Modules/Chat/Chat.lua
+
+Modules/Meter/Bars.lua
+Modules/Meter/MPlus.lua
+Modules/Meter/Meter.lua
