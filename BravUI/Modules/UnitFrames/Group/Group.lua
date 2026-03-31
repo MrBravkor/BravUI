@@ -19,6 +19,7 @@ local U                   = BravUI.Utils
 local ReadText            = U.ReadText
 local Abbrev              = U.AbbrevForSetText
 local Create1pxBorder     = U.Create1pxBorder
+local ApplyBG             = U.ApplyBG
 local CreateBarBackground = U.CreateBarBackgroundTexture
 local CreateIconFrame     = U.CreateIconFrame
 local ClampNum            = U.ClampNum
@@ -168,14 +169,12 @@ local function CreatePartyMember(i)
   classPower:SetMinMaxValues(0, 1)
   classPower:SetValue(0)
   classPower:Hide()
-  CreateBarBackground(classPowerFrame, classPower)
   Create1pxBorder(classPower)
 
   local hp = CreateFrame("StatusBar", nil, hpFrame)
   hp:SetAllPoints(hpFrame)
   hp:SetStatusBarTexture(TEX)
   hp:SetMinMaxValues(0, 1)
-  CreateBarBackground(hpFrame, hp)
   Create1pxBorder(hp)
 
   local roleHolder = CreateIconFrame(hp, ROLE_SIZE, "CENTER", hp, 0, 0)
@@ -193,7 +192,6 @@ local function CreatePartyMember(i)
   power:SetAllPoints(powerFrame)
   power:SetStatusBarTexture(TEX)
   power:SetMinMaxValues(0, 1)
-  CreateBarBackground(powerFrame, power)
   Create1pxBorder(power)
 
   local powerText = U.CreateText(power, "CENTER", "CENTER", 11, 0, 0)
@@ -253,9 +251,19 @@ local function CreatePartyMember(i)
       hpNameText:SetText(name)
     end
     local hpCfg = GetTextConfig("hp")
-    if not hpCfg or hpCfg.enabled ~= false then
+    if hpCfg and hpCfg.enabled == false then
+      hpStatsText:SetText("")
+    else
       pcall(function()
-        hpStatsText:SetText((f.__hp_k or "?") .. " | " .. (f.__hp_pct or "?"))
+        local fmt = (hpCfg and hpCfg.format) or "VALUE_PERCENT"
+        local val = f.__hp_k or "?"
+        local pct = f.__hp_pct or "?"
+        if     fmt == "VALUE"         then hpStatsText:SetText(val)
+        elseif fmt == "PERCENT"       then hpStatsText:SetText(pct)
+        elseif fmt == "PERCENT_VALUE" then hpStatsText:SetText(pct .. " | " .. val)
+        elseif fmt == "NONE"          then hpStatsText:SetText("")
+        else                               hpStatsText:SetText(val .. " | " .. pct)
+        end
       end)
     end
   end
@@ -375,6 +383,11 @@ local function CreatePartyMember(i)
     end
   end
 
+  function f:ApplyBackgrounds()
+    ApplyBG(hp,    "group", "hp")
+    ApplyBG(power, "group", "power")
+  end
+
   function f:Update()
     local u = self.unit
     if not SafeUnitExists(u) then
@@ -441,7 +454,12 @@ local function CreatePartyMember(i)
     if pwrCfg and pwrCfg.enabled == false then
       powerText:SetText("")
     else
-      powerText:SetText(Abbrev(UnitPower(u)))
+      local pwrFmt = (pwrCfg and pwrCfg.format) or "VALUE"
+      if pwrFmt == "NONE" then
+        powerText:SetText("")
+      else
+        powerText:SetText(Abbrev(UnitPower(u)))
+      end
     end
 
     local colorCfg = GetColorConfig()
@@ -553,6 +571,7 @@ local function ApplyFromDB()
     local mf = members[i]
     mf:ApplyLayout(layout)
     mf:ApplyTextSettings()
+    mf:ApplyBackgrounds()
 
     mf:ClearAllPoints()
     if i == 1 then
@@ -663,6 +682,7 @@ local function SetPreviewMode(enabled)
       mf:SetAlpha(1.0)
       mf:ApplyLayout(GetLayout())
       mf:ApplyTextSettings()
+      mf:ApplyBackgrounds()
 
       local fakeMaxHP    = 100000
       local fakeHP       = math.random(60000, 100000)

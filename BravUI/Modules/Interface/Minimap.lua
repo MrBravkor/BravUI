@@ -211,44 +211,50 @@ local SAFE_CHILDREN = {
   ["BravUI_MinimapV2"] = true,
 }
 
-local function HideAddonMinimapButtons()
+local _hideAddonBtns = true  -- flag consulte par les hooks
+
+local function IsAddonButton(child)
+  if not child or child:IsForbidden() then return false end
+  local n = child.GetName and child:GetName() or ""
+  if n:find("LibDBIcon", 1, true) then return true end
+  if n:find("MinimapButton", 1, true) then return true end
+  if n ~= "" and not SAFE_CHILDREN[n]
+     and child.GetObjectType and child:GetObjectType() == "Button"
+     and not n:find("Minimap", 1, true) then
+    return true
+  end
+  return false
+end
+
+local function ProcessMinimapChild(child)
+  if not IsAddonButton(child) then return end
+  if _hideAddonBtns then
+    child:Hide()
+    child:SetAlpha(0)
+  else
+    child:Show()
+    child:SetAlpha(1)
+  end
+  if not child._bravHooked then
+    hooksecurefunc(child, "Show", function(self)
+      if _hideAddonBtns then self:Hide(); self:SetAlpha(0) end
+    end)
+    child._bravHooked = true
+  end
+end
+
+local function ApplyAddonMinimapButtons()
   local mm = _G.Minimap
   if not mm then return end
 
   for i = 1, select("#", mm:GetChildren()) do
-    local child = select(i, mm:GetChildren())
-    if child and not child:IsForbidden() then
-      local n = child.GetName and child:GetName() or ""
-      if n:find("LibDBIcon", 1, true)
-         or n:find("MinimapButton", 1, true)
-         or (n ~= "" and not SAFE_CHILDREN[n] and child:IsShown()
-             and child.GetObjectType and child:GetObjectType() == "Button"
-             and not n:find("Minimap", 1, true)) then
-        child:Hide()
-        child:SetAlpha(0)
-        if not child._bravHidden then
-          hooksecurefunc(child, "Show", function(self) self:Hide(); self:SetAlpha(0) end)
-          child._bravHidden = true
-        end
-      end
-    end
+    ProcessMinimapChild(select(i, mm:GetChildren()))
   end
 
   local bd = _G.MinimapBackdrop
   if bd then
     for i = 1, select("#", bd:GetChildren()) do
-      local child = select(i, bd:GetChildren())
-      if child and not child:IsForbidden() then
-        local n = child.GetName and child:GetName() or ""
-        if n:find("LibDBIcon", 1, true) then
-          child:Hide()
-          child:SetAlpha(0)
-          if not child._bravHidden then
-            hooksecurefunc(child, "Show", function(self) self:Hide(); self:SetAlpha(0) end)
-            child._bravHidden = true
-          end
-        end
-      end
+      ProcessMinimapChild(select(i, bd:GetChildren()))
     end
   end
 end
@@ -847,9 +853,11 @@ local function ApplySkin()
   Minimap._panel = panel
 
   PurgeBlizzardRoundArt()
-  if db.hideAddonButtons ~= false then
-    HideAddonMinimapButtons()
-  end
+  _hideAddonBtns = db.hideAddonButtons ~= false
+  ApplyAddonMinimapButtons()
+  -- Re-scan retarde pour attraper les boutons d'addons crees apres l'init
+  C_Timer.After(2, ApplyAddonMinimapButtons)
+  C_Timer.After(5, ApplyAddonMinimapButtons)
   PlaceMinimapInContent(mm, panel._content, db)
 
   -- Reparent Blizzard tracking button
@@ -1091,6 +1099,8 @@ function Minimap:Refresh()
     RefreshColors(self._panel, db)
     UpdateBottom(self._panel, db)
     UpdateZoneText(self._panel)
+    _hideAddonBtns = db.hideAddonButtons ~= false
+    ApplyAddonMinimapButtons()
   end
 end
 

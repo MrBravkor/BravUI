@@ -89,11 +89,14 @@ local BLIZZARD_FRAMES = {
 local function ApplyHideBlizzardUI()
   local hide = BravLib.API.Get("general", "hideBlizzardUI")
   if hide == false then return end
-  -- Default: hide (nil or true)
+  -- Alpha 0 + no mouse : invisible mais Blizzard continue de mettre a jour
+  -- les barres et textes internes (nécessaire pour les hooks HP/%)
   for _, name in ipairs(BLIZZARD_FRAMES) do
     local frame = _G[name]
     if frame then
-      RegisterStateDriver(frame, "visibility", "hide")
+      frame:SetAlpha(0)
+      if frame.EnableMouse then frame:EnableMouse(false) end
+      if frame.EnableMouseWheel then frame:EnableMouseWheel(false) end
     end
   end
 end

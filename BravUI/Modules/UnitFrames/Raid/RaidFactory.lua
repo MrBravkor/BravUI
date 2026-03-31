@@ -20,6 +20,7 @@ local U                   = BravUI.Utils
 local Abbrev              = U.AbbrevForSetText
 local ClampNum            = U.ClampNum
 local Create1pxBorder     = U.Create1pxBorder
+local ApplyBG             = U.ApplyBG
 local CreateBarBackground = U.CreateBarBackgroundTexture
 local CreateIconFrame     = U.CreateIconFrame
 local SafeUnitExists      = U.SafeUnitExists
@@ -125,7 +126,6 @@ function BravUI.RaidFactory.Create(cfg)
     hp:SetAllPoints(hpFrame)
     hp:SetStatusBarTexture(TEX)
     hp:SetMinMaxValues(0, 1)
-    CreateBarBackground(hpFrame, hp)
     Create1pxBorder(hp)
 
     -- Power
@@ -137,7 +137,6 @@ function BravUI.RaidFactory.Create(cfg)
     power:SetAllPoints(powerFrame)
     power:SetStatusBarTexture(TEX)
     power:SetMinMaxValues(0, 1)
-    CreateBarBackground(powerFrame, power)
     Create1pxBorder(power)
 
     -- Icons
@@ -189,8 +188,25 @@ function BravUI.RaidFactory.Create(cfg)
         hpNameText:SetText(name)
       end
       local hpCfg = GetTextConfig("hp")
-      if not hpCfg or hpCfg.enabled ~= false then
-        pcall(function() hpStatsText:SetText(AbbreviateNumbers(UnitHealth(u))) end)
+      if hpCfg and hpCfg.enabled == false then
+        hpStatsText:SetText("")
+      else
+        pcall(function()
+          local fmt = (hpCfg and hpCfg.format) or "VALUE"
+          if fmt == "NONE" then
+            hpStatsText:SetText("")
+          else
+            local cur = UnitHealth(u)
+            local max = UnitHealthMax(u)
+            local val = Abbrev(cur)
+            local pct = (max > 0) and (math.floor(cur / max * 100) .. "%") or "0%"
+            if     fmt == "PERCENT"       then hpStatsText:SetText(pct)
+            elseif fmt == "VALUE_PERCENT" then hpStatsText:SetText(val .. " | " .. pct)
+            elseif fmt == "PERCENT_VALUE" then hpStatsText:SetText(pct .. " | " .. val)
+            else                               hpStatsText:SetText(val)
+            end
+          end
+        end)
       end
     end
 
@@ -234,10 +250,18 @@ function BravUI.RaidFactory.Create(cfg)
       end
     end
 
+    function f:ApplyBackgrounds()
+      ApplyBG(hp,    dbKey, "hp")
+      ApplyBG(power, dbKey, "power")
+    end
+
     function f:Update()
       local u = self.unit
-      if not SafeUnitExists(u) then self:Hide(); return end
-      self:Show()
+      if not SafeUnitExists(u) then
+        if not InCombatLockdown() then self:Hide() end
+        return
+      end
+      if not InCombatLockdown() then self:Show() end
 
       if not SafeUnitIsConnected(u) then
         self:SetAlpha(0.4)
@@ -293,7 +317,12 @@ function BravUI.RaidFactory.Create(cfg)
       if pwrCfg and pwrCfg.enabled == false then
         powerText:SetText("")
       else
-        powerText:SetText(Abbrev(UnitPower(u)))
+        local pwrFmt = (pwrCfg and pwrCfg.format) or "VALUE"
+        if pwrFmt == "NONE" then
+          powerText:SetText("")
+        else
+          powerText:SetText(Abbrev(UnitPower(u)))
+        end
       end
 
       local colorCfg = GetColorConfig()
@@ -444,6 +473,7 @@ function BravUI.RaidFactory.Create(cfg)
     for i = 1, maxMembers do
       members[i]:ApplyLayout()
       members[i]:ApplyTextSettings()
+      members[i]:ApplyBackgrounds()
     end
 
     local memberH      = members[1]:GetHeight() or (DEF_HP_H + DEF_PWR_H)
@@ -550,7 +580,9 @@ function BravUI.RaidFactory.Create(cfg)
       ApplyFromDB()
       for i = 1, maxMembers do members[i]:Update() end
     else
-      for i = 1, maxMembers do members[i]:Hide() end
+      if not InCombatLockdown() then
+        for i = 1, maxMembers do members[i]:Hide() end
+      end
     end
 
     SyncAllClickOverlays()
@@ -589,7 +621,7 @@ function BravUI.RaidFactory.Create(cfg)
         local fakePwr = math.random(10000, 50000)
 
         mf:Show(); mf:SetAlpha(1.0)
-        mf:ApplyLayout(); mf:ApplyTextSettings()
+        mf:ApplyLayout(); mf:ApplyTextSettings(); mf:ApplyBackgrounds()
 
         mf.HPBar:SetMinMaxValues(0, 100000);   mf.HPBar:SetValue(fakeHP)
         mf.PowerBar:SetMinMaxValues(0, 50000); mf.PowerBar:SetValue(fakePwr)

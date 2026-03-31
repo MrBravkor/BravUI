@@ -90,6 +90,12 @@ local defaults = {
                 hp    = { enabled = true, anchor = "RIGHT",  size = 13, offsetX = -6, offsetY = 0, format = "VALUE_PERCENT" },
                 power = { enabled = true, anchor = "CENTER", size = 11, format = "VALUE" },
             },
+            backgrounds = {
+                hp         = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power      = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                classPower = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                segments   = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+            },
             cast = {
                 enabled    = true,
                 anchor     = "POWER_BOTTOM",
@@ -142,6 +148,10 @@ local defaults = {
                 hp    = { enabled = true, anchor = "RIGHT",  size = 10, offsetX = -4, offsetY = 0, format = "VALUE_PERCENT" },
                 power = { enabled = false, anchor = "CENTER", size = 8,  format = "VALUE" },
             },
+            backgrounds = {
+                hp    = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+            },
         },
         pet = {
             enabled   = true,
@@ -162,6 +172,10 @@ local defaults = {
                 name  = { enabled = true, anchor = "LEFT",   size = 10, offsetX = 4,  offsetY = 0 },
                 hp    = { enabled = true, anchor = "RIGHT",  size = 10, offsetX = -4, offsetY = 0, format = "VALUE_PERCENT" },
                 power = { enabled = false, anchor = "CENTER", size = 8,  format = "VALUE" },
+            },
+            backgrounds = {
+                hp    = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
             },
             cast = {
                 enabled   = true,
@@ -198,6 +212,10 @@ local defaults = {
                 name  = { enabled = true, anchor = "LEFT",   size = 11, offsetX = 4,  offsetY = 0 },
                 hp    = { enabled = true, anchor = "RIGHT",  size = 11, offsetX = -4, offsetY = 0, format = "VALUE_PERCENT" },
                 power = { enabled = true, anchor = "CENTER", size = 10, format = "VALUE" },
+            },
+            backgrounds = {
+                hp    = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
             },
         },
         target = {
@@ -237,6 +255,11 @@ local defaults = {
                 hp    = { enabled = true, anchor = "RIGHT",  size = 13, offsetX = -6, offsetY = 0, format = "VALUE_PERCENT" },
                 power = { enabled = true, anchor = "CENTER", size = 11, format = "VALUE" },
                 level = { enabled = true, size = 12 },
+            },
+            backgrounds = {
+                hp    = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                cast  = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
             },
             buffs = {
                 enabled       = true,
@@ -285,10 +308,14 @@ local defaults = {
                 useClassColor = true,
                 usePowerColor = true,
             },
+            backgrounds = {
+                hp    = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+            },
             text = {
-                name  = { enabled = true,  size = 10, offsetX = 4,  offsetY = 0 },
-                hp    = { enabled = true,  size = 10, offsetX = -4, offsetY = 0 },
-                power = { enabled = false, size = 8 },
+                name  = { enabled = true,  anchor = "LEFT",   size = 10, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true,  anchor = "RIGHT",  size = 10, offsetX = -4, offsetY = 0, format = "VALUE" },
+                power = { enabled = false, anchor = "CENTER", size = 8,  format = "VALUE" },
             },
         },
         raid15 = {
@@ -315,10 +342,14 @@ local defaults = {
                 useClassColor = true,
                 usePowerColor = true,
             },
+            backgrounds = {
+                hp    = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+            },
             text = {
-                name  = { enabled = true,  size = 10, offsetX = 4,  offsetY = 0 },
-                hp    = { enabled = true,  size = 10, offsetX = -4, offsetY = 0 },
-                power = { enabled = false, size = 8 },
+                name  = { enabled = true,  anchor = "LEFT",   size = 10, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true,  anchor = "RIGHT",  size = 10, offsetX = -4, offsetY = 0, format = "VALUE" },
+                power = { enabled = false, anchor = "CENTER", size = 8,  format = "VALUE" },
             },
         },
         raid25 = {
@@ -345,10 +376,14 @@ local defaults = {
                 useClassColor = true,
                 usePowerColor = true,
             },
+            backgrounds = {
+                hp    = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+            },
             text = {
-                name  = { enabled = true,  size = 10, offsetX = 4,  offsetY = 0 },
-                hp    = { enabled = true,  size = 10, offsetX = -4, offsetY = 0 },
-                power = { enabled = false, size = 8 },
+                name  = { enabled = true,  anchor = "LEFT",   size = 10, offsetX = 4,  offsetY = 0 },
+                hp    = { enabled = true,  anchor = "RIGHT",  size = 10, offsetX = -4, offsetY = 0, format = "VALUE" },
+                power = { enabled = false, anchor = "CENTER", size = 8,  format = "VALUE" },
             },
         },
         raid40 = {
@@ -375,10 +410,14 @@ local defaults = {
                 useClassColor = true,
                 usePowerColor = true,
             },
+            backgrounds = {
+                hp    = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+                power = { enabled = true, alpha = 0.55, color = { r = 0, g = 0, b = 0 } },
+            },
             text = {
-                name  = { enabled = true,  size = 9,  offsetX = 3,  offsetY = 0 },
-                hp    = { enabled = false, size = 9,  offsetX = -3, offsetY = 0 },
-                power = { enabled = false, size = 8 },
+                name  = { enabled = true,  anchor = "LEFT",   size = 9,  offsetX = 3,  offsetY = 0 },
+                hp    = { enabled = false, anchor = "RIGHT",  size = 9,  offsetX = -3, offsetY = 0, format = "VALUE" },
+                power = { enabled = false, anchor = "CENTER", size = 8,  format = "VALUE" },
             },
         },
     },

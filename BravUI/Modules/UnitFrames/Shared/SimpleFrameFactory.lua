@@ -185,6 +185,9 @@ function BravUI.SimpleFrameFactory.Create(cfg)
     U.ApplyTextConfig(hpValueText, GetTextConfig("hp"),    hp,    "RIGHT",  TS_HP,   -4, 0)
     U.ApplyTextConfig(powerText,   GetTextConfig("power"), power, "CENTER", TS_PWR,   0, 0)
 
+    U.ApplyBG(hp,    DB_KEY, "hp")
+    U.ApplyBG(power, DB_KEY, "power")
+
     SyncClickOverlay()
   end
   ns.ApplyFromDB = ApplyFromDB
@@ -254,7 +257,17 @@ function BravUI.SimpleFrameFactory.Create(cfg)
       if hpFmt == "NONE" then
         hpValueText:SetText("")
       else
-        pcall(function() hpValueText:SetText(Abbrev(UnitHealth(UNIT))) end)
+        pcall(function()
+          local cur = UnitHealth(UNIT)
+          local max = UnitHealthMax(UNIT)
+          local val = Abbrev(cur)
+          local pct = (max and max > 0) and (math.floor(cur / max * 100) .. "%") or "0%"
+          if     hpFmt == "PERCENT"       then hpValueText:SetText(pct)
+          elseif hpFmt == "VALUE_PERCENT" then hpValueText:SetText(val .. " | " .. pct)
+          elseif hpFmt == "PERCENT_VALUE" then hpValueText:SetText(pct .. " | " .. val)
+          else                                 hpValueText:SetText(val)
+          end
+        end)
       end
     end
 

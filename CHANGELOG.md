@@ -2,6 +2,40 @@
 
 ---
 
+## [2.0.7-alpha] — 31/03/2026
+
+Format texte, fond configurable, fix taint raid, fix minimap.
+
+### Menu UnitFrames — Texte
+
+- Format texte HP (VALUE, PERCENT, VALUE_PERCENT, PERCENT_VALUE, NONE) pour Group, Raid 15/25/40
+- Format texte HP complet pour Focus, Pet, ToT (SimpleFrameFactory)
+- Format texte Power (VALUE, NONE) pour Group, Raid 15/25/40
+- Ajout des defaults manquants `anchor` et `format` pour group/raid — widgets anchor grid et format fonctionnels
+
+### Menu UnitFrames — Fond
+
+- Backgrounds configurables depuis la DB pour toutes les unit frames
+- Defaults `backgrounds` ajoutes pour Player, Target, ToT, Pet, Focus
+- Suppression de la Texture init (alpha fixe 0.55) qui persistait sous le fond slider dans Raid/Group
+- Apercu live dans le menu (Player toujours visible, autres via preview)
+
+### Core
+
+- Frames Blizzard masquees via `SetAlpha(0)` au lieu de `RegisterStateDriver("hide")` — les barres/textes restent actifs pour les hooks HP/%
+
+### Minimap
+
+- Refonte masquage icones addon : flag reversible, hooks intelligents, re-scan retarde (2s+5s), toggle live depuis le menu
+
+### Corrections
+
+- Fix taint raid frames — protection `InCombatLockdown()` sur `Show()`/`Hide()` des membres raid en combat
+- Fix double fond Raid/Group — `CreateBarBackgroundTexture` parasite supprime
+- Fix icones addon minimap reapparaissant apres /reload
+
+---
+
 ## [2.0.6-alpha] — 31/03/2026
 
 Module Meter (DPS/HPS) porte en v2, tracker M+ complet, BravLib.Format et BravLib.DamageMeter.
