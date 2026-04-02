@@ -254,17 +254,18 @@ local function CreatePartyMember(i)
     if hpCfg and hpCfg.enabled == false then
       hpStatsText:SetText("")
     else
-      pcall(function()
-        local fmt = (hpCfg and hpCfg.format) or "VALUE_PERCENT"
-        local val = f.__hp_k or "?"
-        local pct = f.__hp_pct or "?"
+      local fmt = (hpCfg and hpCfg.format) or "VALUE_PERCENT"
+      if fmt == "NONE" then
+        hpStatsText:SetText("")
+      else
+        local val = tostring(f.__hp_k or "?") or "?"
+        local pct = tostring(f.__hp_pct or "?") or "?"
         if     fmt == "VALUE"         then hpStatsText:SetText(val)
         elseif fmt == "PERCENT"       then hpStatsText:SetText(pct)
         elseif fmt == "PERCENT_VALUE" then hpStatsText:SetText(pct .. " | " .. val)
-        elseif fmt == "NONE"          then hpStatsText:SetText("")
         else                               hpStatsText:SetText(val .. " | " .. pct)
         end
-      end)
+      end
     end
   end
 
@@ -366,20 +367,29 @@ local function CreatePartyMember(i)
 
     local cfg = GetConfig()
     if cfg then
-      local w    = (cfg.width or DEFAULT_WIDTH)
-      local halfW = (w / 2) - (ROLE_SIZE / 2)
-      local hpH  = GetHeightConfig("hp", DEFAULT_HEIGHTS.hp)
-      local halfH = (hpH / 2) - (ROLE_SIZE / 2)
-
+      -- Role icon: size + anchor
+      local roleSize   = cfg.roleIconSize or ROLE_SIZE
+      local roleAnchor = cfg.roleIconAnchor or "CENTER"
       local rx = cfg.roleIconOffsetX or 0
       local ry = cfg.roleIconOffsetY or 0
-      if rx > halfW  then rx = halfW  end
-      if rx < -halfW then rx = -halfW end
-      if ry > halfH  then ry = halfH  end
-      if ry < -halfH then ry = -halfH end
-
+      roleHolder:SetSize(roleSize, roleSize)
+      if roleIcon then roleIcon:SetSize(roleSize, roleSize) end
       roleHolder:ClearAllPoints()
-      roleHolder:SetPoint("CENTER", hp, "CENTER", rx, ry)
+      roleHolder:SetPoint(roleAnchor, hp, roleAnchor, rx, ry)
+
+      -- Leader icon: size + anchor
+      local leaderSize   = cfg.leaderIconSize or 12
+      local leaderAnchor = cfg.leaderIconAnchor or "TOPLEFT"
+      local lx = cfg.leaderIconOffsetX or -4
+      local ly = cfg.leaderIconOffsetY or 12
+      leaderIcon:SetSize(leaderSize, leaderSize)
+      leaderIcon:ClearAllPoints()
+      leaderIcon:SetPoint(leaderAnchor, hp, leaderAnchor, lx, ly)
+
+      -- Assist uses same anchor as leader
+      assistIcon:SetSize(leaderSize, leaderSize)
+      assistIcon:ClearAllPoints()
+      assistIcon:SetPoint(leaderAnchor, hp, leaderAnchor, lx, ly)
     end
   end
 
@@ -692,19 +702,73 @@ local function SetPreviewMode(enabled)
       mf.HPBar:SetMinMaxValues(0, fakeMaxHP);    mf.HPBar:SetValue(fakeHP)
       mf.PowerBar:SetMinMaxValues(0, fakeMaxPower); mf.PowerBar:SetValue(fakePower)
 
-      mf.__hp_k   = Abbrev(fakeHP)
-      mf.__hp_pct = math.floor((fakeHP / fakeMaxHP) * 100) .. "%"
+      local val = Abbrev(fakeHP)
+      local pct = math.floor((fakeHP / fakeMaxHP) * 100) .. "%"
+      mf.__hp_k   = val
+      mf.__hp_pct = pct
       mf.HPNameText:SetText(fakeNames[i] or ("Party" .. i))
-      mf.HPStatsText:SetText(mf.__hp_k .. " | " .. mf.__hp_pct)
-      mf.PowerText:SetText(Abbrev(fakePower))
 
-      local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[fakeClasses[i]]
-      if classColor then
-        mf.HPBar:SetStatusBarColor(classColor.r, classColor.g, classColor.b)
+      local hpCfg = GetTextConfig("hp")
+      if hpCfg and hpCfg.enabled == false then
+        mf.HPStatsText:SetText("")
       else
-        mf.HPBar:SetStatusBarColor(0.5, 0.5, 0.5)
+        local fmt = (hpCfg and hpCfg.format) or "VALUE_PERCENT"
+        if     fmt == "NONE"          then mf.HPStatsText:SetText("")
+        elseif fmt == "VALUE"         then mf.HPStatsText:SetText(val)
+        elseif fmt == "PERCENT"       then mf.HPStatsText:SetText(pct)
+        elseif fmt == "PERCENT_VALUE" then mf.HPStatsText:SetText(pct .. " | " .. val)
+        else                               mf.HPStatsText:SetText(val .. " | " .. pct)
+        end
       end
-      mf.PowerBar:SetStatusBarColor(0.0, 0.4, 1.0)
+
+      local pwrCfg = GetTextConfig("power")
+      if pwrCfg and pwrCfg.enabled == false then
+        mf.PowerText:SetText("")
+      else
+        local pwrFmt = (pwrCfg and pwrCfg.format) or "VALUE"
+        if pwrFmt == "NONE" then mf.PowerText:SetText("")
+        else                     mf.PowerText:SetText(Abbrev(fakePower))
+        end
+      end
+
+      -- Apply HP color respecting config (class / custom)
+      local colorCfg = GetColorConfig()
+      local useClassColor = not colorCfg or colorCfg.useClassColor ~= false
+      if useClassColor then
+        local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[fakeClasses[i]]
+        if classColor then
+          mf.HPBar:SetStatusBarColor(classColor.r, classColor.g, classColor.b)
+        else
+          mf.HPBar:SetStatusBarColor(0.5, 0.5, 0.5)
+        end
+      else
+        local custom = colorCfg and colorCfg.hpCustom
+        if custom and custom.r then
+          mf.HPBar:SetStatusBarColor(custom.r, custom.g, custom.b)
+        else
+          mf.HPBar:SetStatusBarColor(0.2, 0.8, 0.2)
+        end
+      end
+
+      -- Apply Power color respecting config (power type / custom)
+      local usePowerColor = not colorCfg or colorCfg.usePowerColor ~= false
+      if usePowerColor then
+        local fakePowerColors = {
+          { 0.0, 0.0, 1.0 },   -- WARRIOR = rage (blue for mana fallback)
+          { 0.0, 0.0, 1.0 },   -- PRIEST = mana
+          { 0.0, 0.0, 1.0 },   -- MAGE = mana
+          { 1.0, 0.96, 0.41 }, -- ROGUE = energy
+        }
+        local pc = fakePowerColors[i] or { 0.0, 0.4, 1.0 }
+        mf.PowerBar:SetStatusBarColor(pc[1], pc[2], pc[3])
+      else
+        local custom = colorCfg and colorCfg.powerCustom
+        if custom and custom.r then
+          mf.PowerBar:SetStatusBarColor(custom.r, custom.g, custom.b)
+        else
+          mf.PowerBar:SetStatusBarColor(0.2, 0.4, 0.8)
+        end
+      end
 
       local cfg      = GetConfig()
       local showRole = (cfg == nil) or (cfg.showRole ~= false)

@@ -575,7 +575,7 @@ function U.GetProfileBG(unitKey, barKey)
   local out = {}
   local src = per or global or U.BG_DEFAULT
 
-  out.enabled = (src.enabled ~= nil) and src.enabled or U.BG_DEFAULT.enabled
+  if src.enabled ~= nil then out.enabled = src.enabled else out.enabled = U.BG_DEFAULT.enabled end
   out.alpha   = (src.alpha   ~= nil) and src.alpha   or U.BG_DEFAULT.alpha
 
   local col = src.color or U.BG_DEFAULT.color
@@ -593,13 +593,22 @@ function U.ApplyBG(bar, unitKey, barKey)
   local bg = bar.__brav_bg
   if not bg then return end
   local c = U.GetProfileBG(unitKey, barKey)
-  if not c.enabled then bg:Hide(); return end
-  if bg.__brav_bgfile ~= c.texture then
-    bg.__brav_bgfile = c.texture
-    bg:SetBackdrop({ bgFile = bg.__brav_bgfile })
+
+  if not c.enabled then
+    -- Nuke backdrop entirely
+    if bg.SetBackdrop then pcall(bg.SetBackdrop, bg, nil) end
+    if bg.SetColorTexture then bg:SetColorTexture(0, 0, 0, 0) end
+    bg:Hide()
+    return
   end
-  bg:SetBackdropColor(c.r, c.g, c.b, c.alpha)
+
   bg:Show()
+  if bg.SetBackdrop then
+    bg:SetBackdrop({ bgFile = c.texture or TEX_WHITE })
+    bg:SetBackdropColor(c.r, c.g, c.b, c.alpha)
+  elseif bg.SetColorTexture then
+    bg:SetColorTexture(c.r, c.g, c.b, c.alpha)
+  end
 end
 
 -- ============================================================================

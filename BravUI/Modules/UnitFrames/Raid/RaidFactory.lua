@@ -174,6 +174,8 @@ function BravUI.RaidFactory.Create(cfg)
     f.RezHolder   = rezHolder
     f.WMHolder    = wmHolder
 
+    -- UnitHealth() is a SECRET in TWW — pass directly to AbbreviateNumbers → SetText.
+    -- No arithmetic, no comparison, no concatenation on secrets.
     local function RefreshHPText()
       if previewMode then return end
       local u = f.unit
@@ -191,22 +193,14 @@ function BravUI.RaidFactory.Create(cfg)
       if hpCfg and hpCfg.enabled == false then
         hpStatsText:SetText("")
       else
-        pcall(function()
-          local fmt = (hpCfg and hpCfg.format) or "VALUE"
-          if fmt == "NONE" then
-            hpStatsText:SetText("")
-          else
-            local cur = UnitHealth(u)
-            local max = UnitHealthMax(u)
-            local val = Abbrev(cur)
-            local pct = (max > 0) and (math.floor(cur / max * 100) .. "%") or "0%"
-            if     fmt == "PERCENT"       then hpStatsText:SetText(pct)
-            elseif fmt == "VALUE_PERCENT" then hpStatsText:SetText(val .. " | " .. pct)
-            elseif fmt == "PERCENT_VALUE" then hpStatsText:SetText(pct .. " | " .. val)
-            else                               hpStatsText:SetText(val)
-            end
-          end
-        end)
+        local fmt = (hpCfg and hpCfg.format) or "VALUE"
+        if fmt == "NONE" then
+          hpStatsText:SetText("")
+        else
+          pcall(function()
+            hpStatsText:SetText(AbbreviateNumbers(UnitHealth(u)))
+          end)
+        end
       end
     end
 
@@ -241,12 +235,29 @@ function BravUI.RaidFactory.Create(cfg)
 
       local c = GetConfig()
       if c then
-        local halfW = ((c.width or DEF_WIDTH) / 2) - (ROLE_SIZE / 2)
-        local halfH = (GetHeightConfig("hp", DEF_HP_H) / 2) - (ROLE_SIZE / 2)
-        local rx    = ClampNum(c.roleIconOffsetX, -halfW, halfW, 0)
-        local ry    = ClampNum(c.roleIconOffsetY, -halfH, halfH, 0)
+        -- Role icon: size + anchor
+        local roleSize   = c.roleIconSize or ROLE_SIZE
+        local roleAnchor = c.roleIconAnchor or "CENTER"
+        local rx = c.roleIconOffsetX or 0
+        local ry = c.roleIconOffsetY or 0
+        roleHolder:SetSize(roleSize, roleSize)
+        if roleIcon then roleIcon:SetSize(roleSize, roleSize) end
         roleHolder:ClearAllPoints()
-        roleHolder:SetPoint("CENTER", hp, "CENTER", rx, ry)
+        roleHolder:SetPoint(roleAnchor, hp, roleAnchor, rx, ry)
+
+        -- Leader icon: size + anchor
+        local leaderSize   = c.leaderIconSize or 12
+        local leaderAnchor = c.leaderIconAnchor or "TOPLEFT"
+        local lx = c.leaderIconOffsetX or 0
+        local ly = c.leaderIconOffsetY or 0
+        leaderIcon:SetSize(leaderSize, leaderSize)
+        leaderIcon:ClearAllPoints()
+        leaderIcon:SetPoint(leaderAnchor, hp, leaderAnchor, lx, ly)
+
+        -- Assist uses same anchor as leader
+        assistIcon:SetSize(leaderSize, leaderSize)
+        assistIcon:ClearAllPoints()
+        assistIcon:SetPoint(leaderAnchor, hp, leaderAnchor, lx, ly)
       end
     end
 
@@ -321,7 +332,9 @@ function BravUI.RaidFactory.Create(cfg)
         if pwrFmt == "NONE" then
           powerText:SetText("")
         else
-          powerText:SetText(Abbrev(UnitPower(u)))
+          pcall(function()
+            powerText:SetText(Abbrev(UnitPower(u)))
+          end)
         end
       end
 
@@ -375,7 +388,7 @@ function BravUI.RaidFactory.Create(cfg)
     local label = container:CreateFontString(nil, "OVERLAY")
     label:SetFontObject("GameFontHighlightSmall")
     label:SetText("G" .. g)
-    label:SetTextColor(0.7, 0.7, 0.7, 0.9)
+    label:SetTextColor(1, 1, 1, 1)
     label:Hide()
     groupLabels[g] = label
   end
@@ -431,12 +444,16 @@ function BravUI.RaidFactory.Create(cfg)
       sortable[i] = { index = i, role = role, subgroup = subgroup, exists = exists }
     end
 
+    local sortByRole = not useSubgroups and (c.sortByRole ~= false)
+
     table.sort(sortable, function(a, b)
       if a.exists ~= b.exists then return a.exists end
       if useSubgroups and a.subgroup ~= b.subgroup then return a.subgroup < b.subgroup end
-      local ra = ROLE_ORDER[a.role] or 4
-      local rb = ROLE_ORDER[b.role] or 4
-      if ra ~= rb then return ra < rb end
+      if sortByRole then
+        local ra = ROLE_ORDER[a.role] or 4
+        local rb = ROLE_ORDER[b.role] or 4
+        if ra ~= rb then return ra < rb end
+      end
       return a.index < b.index
     end)
 
@@ -482,7 +499,13 @@ function BravUI.RaidFactory.Create(cfg)
     if useSubgroups then
       local groupSpacing   = c.groupSpacing or 2
       local showGroupLabel = c.showGroupLabel ~= false
+      local labelSize      = c.groupLabelSize or 9
       local labelH         = showGroupLabel and GROUP_LABEL_HEIGHT or 0
+
+      -- Apply font size to all group labels
+      for g = 1, MAX_SUBGROUPS do
+        pcall(function() groupLabels[g]:SetFont(U.GetFont(), labelSize, "OUTLINE") end)
+      end
 
       local groups = {}
       for i = 1, maxMembers do
@@ -505,8 +528,10 @@ function BravUI.RaidFactory.Create(cfg)
         local label = groupLabels[gNum]
 
         if showGroupLabel then
+          local glOffX = c.groupLabelOffsetX or 0
+          local glOffY = c.groupLabelOffsetY or 0
           label:ClearAllPoints()
-          label:SetPoint("TOPLEFT", container, "TOPLEFT", baseX, baseY)
+          label:SetPoint("TOPLEFT", container, "TOPLEFT", baseX + glOffX, baseY + glOffY)
           label:SetWidth(mWidth)
           label:SetJustifyH("CENTER")
           label:Show()
@@ -627,13 +652,51 @@ function BravUI.RaidFactory.Create(cfg)
         mf.PowerBar:SetMinMaxValues(0, 50000); mf.PowerBar:SetValue(fakePwr)
 
         mf.HPNameText:SetText("Raid" .. i)
-        mf.HPStatsText:SetText(Abbrev(fakeHP))
-        mf.PowerText:SetText(Abbrev(fakePwr))
 
-        local cc = RAID_CLASS_COLORS and RAID_CLASS_COLORS[fakeClasses[i] or "WARRIOR"]
-        if cc then mf.HPBar:SetStatusBarColor(cc.r, cc.g, cc.b)
-        else mf.HPBar:SetStatusBarColor(0.5, 0.5, 0.5) end
-        mf.PowerBar:SetStatusBarColor(0.0, 0.4, 1.0)
+        -- HP text: respect format config
+        local hpCfg = GetTextConfig("hp")
+        if hpCfg and hpCfg.enabled == false then
+          mf.HPStatsText:SetText("")
+        else
+          local fmt = (hpCfg and hpCfg.format) or "VALUE"
+          if fmt == "NONE" then mf.HPStatsText:SetText("")
+          else                  mf.HPStatsText:SetText(Abbrev(fakeHP))
+          end
+        end
+
+        -- Power text: respect config
+        local pwrCfg = GetTextConfig("power")
+        if pwrCfg and pwrCfg.enabled == false then
+          mf.PowerText:SetText("")
+        else
+          local pwrFmt = (pwrCfg and pwrCfg.format) or "VALUE"
+          if pwrFmt == "NONE" then mf.PowerText:SetText("")
+          else                     mf.PowerText:SetText(Abbrev(fakePwr))
+          end
+        end
+
+        -- HP color: respect config (class / custom)
+        local colorCfg = GetColorConfig()
+        local useClassColor = not colorCfg or colorCfg.useClassColor ~= false
+        if useClassColor then
+          local cc = RAID_CLASS_COLORS and RAID_CLASS_COLORS[fakeClasses[i] or "WARRIOR"]
+          if cc then mf.HPBar:SetStatusBarColor(cc.r, cc.g, cc.b)
+          else mf.HPBar:SetStatusBarColor(0.5, 0.5, 0.5) end
+        else
+          local custom = colorCfg and colorCfg.hpCustom
+          if custom and custom.r then mf.HPBar:SetStatusBarColor(custom.r, custom.g, custom.b)
+          else mf.HPBar:SetStatusBarColor(0.2, 0.8, 0.2) end
+        end
+
+        -- Power color: respect config
+        local usePowerColor = not colorCfg or colorCfg.usePowerColor ~= false
+        if usePowerColor then
+          mf.PowerBar:SetStatusBarColor(0.0, 0.4, 1.0)
+        else
+          local custom = colorCfg and colorCfg.powerCustom
+          if custom and custom.r then mf.PowerBar:SetStatusBarColor(custom.r, custom.g, custom.b)
+          else mf.PowerBar:SetStatusBarColor(0.2, 0.4, 0.8) end
+        end
 
         local showRole = (c.showRole ~= false)
         if showRole then

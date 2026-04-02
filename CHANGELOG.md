@@ -2,6 +2,65 @@
 
 ---
 
+## [2.0.8-alpha] — 02/04/2026
+
+Modules AFK, DataBars, Cursor, Cooldown, CombatLog — portage v2 complet. Fix taint chat, secrets raid TWW, fond configurable.
+
+### Module AFK
+
+- Overlay cinématique mode AFK : barres top/bottom, infos joueur/zone/système/FPS, timer AFK + countdown déconnexion
+
+### Module DataBars
+
+- XPBar + RepBar + HonorBar fusionnés en un seul fichier, shared factory inliné
+- Gestion Paragon/Renown/Friendship pour RepBar, masquage des barres Blizzard
+- Intégration edit mode (`/bravmove`), positions synchronisées avec le menu
+- Page menu DataBars complète
+
+### Module Cursor
+
+- Rings (static/GCD/cast), ping, crosshair, trail particules, touches modificatrices
+- Page menu Cursor complète (général, anneau, GCD, cast, trainée, modifiers)
+
+### Module Cooldown
+
+- **Init** — namespace `BravUI.Cooldown`, helpers partagés, bootstrap CDM avec détection + popup si inactif
+- **Skin** — reskin des 4 viewers Blizzard CDM (bordures classe, fond noir, swipe overlay, keybinds, layout grille)
+- **ResourceBar** — barre ressource ancrée sous EssentialCooldownViewer, couleur par type de pouvoir, largeur flexible
+- **CastBar** — barre incantation avec icône sort, spark, timer elapsed/remaining, gestion cast/channel
+- **ClassPower** — segments puissance secondaire (combo, holy power, soul shards, chi, arcane charges, runes DK)
+- Edit Mode CDM — 4 viewers enregistrés dans `/bravmove`, catégorie "Cooldown", protection combat
+- Page menu Cooldown (configuration ResourceBar)
+
+### Module CombatLog
+
+- Détection automatique du type d'instance (donjon/raid/M+/arène/BG)
+- Popup de confirmation stylé BravUI à l'entrée, indicateur "Log actif/inactif" avec bordure classe
+- Auto-disable à la sortie d'instance, container QueueEye intégré au `/bravmove`
+
+### BravLib.Media
+
+- Logo BravUI enregistré
+- Textures `cursor_ring`, `cursor_dot`
+- 19 textures statusbar (beveled, glossy, smooth, stripes...)
+
+### UnitFrames — Icônes rôle & leader
+
+- Système d'ancrage `anchor_grid` 3x3 (TOPLEFT → BOTTOMRIGHT) + taille + offsets X/Y configurables
+- Options ajoutées dans le menu pour Group et Raid
+- Preview respecte la config couleurs (HP classe/custom, power type/custom) et format texte
+
+### Corrections
+
+- **Chat.lua** — fix taint : `hooksecurefunc` + `C_Timer.After(0)` au lieu d'override direct `SetPoint`
+- **RaidFactory.lua** — fix texte HP secret-safe (TWW) : `SetText(AbbreviateNumbers(UnitHealth(u)))` directement
+- **RaidFactory.lua** — fix tri sous-groupes : respect de l'ordre roster Blizzard en mode `groupBySubgroup`
+- **Group.lua** — fix texte HP sécurisé avec `tostring()` sur valeurs cachées
+- **Utils.lua** — fix `GetProfileBG` bug `and/or` avec `false`, `ApplyBG` support dual Texture/Frame
+- **DataBars** — fix `Font not set`, clé DB `xpbar` → `expbar`, defaults v2 complétés, couleur classe/custom respectée
+
+---
+
 ## [2.0.7-alpha] — 31/03/2026
 
 Format texte, fond configurable, fix taint raid, fix minimap.

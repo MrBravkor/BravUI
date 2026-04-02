@@ -28,6 +28,7 @@ local Mover = BravUI.Mover
 
 local _ufRegistered = false
 local EnsureUFRegistered
+local RegisterCDMViewers
 
 -- ============================================================================
 -- SNAP / MAGNETISM
@@ -646,6 +647,9 @@ function Mover:SavePosition(name)
   local entry = _registry[name]
   if not entry or not entry.frame or not entry.dbFunc then return end
 
+  -- Protection combat pour les frames Blizzard (CDM viewers)
+  if InCombatLockdown() and entry.category == "cooldown" then return end
+
   local db, keyX, keyY = entry.dbFunc()
   if not db or not keyX or not keyY then return end
 
@@ -689,6 +693,12 @@ function Mover:ResetPosition(name)
   local entry = _registry[name]
   if not entry or not entry.frame or not entry.dbFunc then return end
 
+  -- Protection combat pour les frames Blizzard (CDM viewers)
+  if InCombatLockdown() and entry.category == "cooldown" then
+    BravLib.Warn("Impossible en combat.")
+    return
+  end
+
   local db, keyX, keyY = entry.dbFunc()
   if not db or not keyX or not keyY then return end
 
@@ -719,11 +729,12 @@ end
 -- ============================================================================
 
 local CATEGORIES = {
-  { key = "all",    label = "Tout" },
-  { key = "uf",     label = "Cadre" },
-  { key = "bars",   label = "Actions" },
-  { key = "data",   label = "Donn\195\169es" },
-  { key = "divers", label = "Divers" },
+  { key = "all",      label = "Tout" },
+  { key = "uf",       label = "Cadre" },
+  { key = "bars",     label = "Actions" },
+  { key = "cooldown", label = "Cooldown" },
+  { key = "data",     label = "Donn\195\169es" },
+  { key = "divers",   label = "Divers" },
 }
 
 local _controlPanel = nil
@@ -905,6 +916,8 @@ function Mover:Enter()
 
   -- Force UF registration if not done yet
   EnsureUFRegistered()
+  -- Force CDM viewers registration
+  RegisterCDMViewers()
 
   _activeCategory = "all"
   for name in pairs(_registry) do
@@ -919,6 +932,11 @@ function Mover:Enter()
 
   ShowGrid()
 
+  -- Activer les previews UF
+  for _, ns in pairs(BravUI.Frames or {}) do
+    if ns.SetPreviewMode then pcall(ns.SetPreviewMode, true) end
+  end
+
   BravLib.Print("Edit Mode |cff00ff00ON|r — Deplace tes elements puis clique Terminer.")
 end
 
@@ -929,6 +947,11 @@ function Mover:Exit()
   for name in pairs(_registry) do
     self:SavePosition(name)
     self:HideOverlay(name)
+  end
+
+  -- Désactiver les previews UF
+  for _, ns in pairs(BravUI.Frames or {}) do
+    if ns.SetPreviewMode then pcall(ns.SetPreviewMode, false) end
   end
 
   HideGuides()
@@ -1036,17 +1059,67 @@ local function RegisterUnitFrames()
 end
 
 -- ============================================================================
+-- AUTO-REGISTER CDM VIEWERS (Blizzard Cooldown Manager)
+-- ============================================================================
+
+local CDM_VIEWERS = {
+    { global = "EssentialCooldownViewer",  name = "CDM Essentiels" },
+    { global = "UtilityCooldownViewer",    name = "CDM Utilitaires" },
+    { global = "BuffIconCooldownViewer",   name = "CDM Buffs Icone" },
+    { global = "BuffBarCooldownViewer",    name = "CDM Buffs Barre" },
+}
+
+local _cdmRegistered = false
+
+RegisterCDMViewers = function()
+    if _cdmRegistered then return end
+
+    local count = 0
+    for _, entry in ipairs(CDM_VIEWERS) do
+        local viewer = _G[entry.global]
+        if viewer and viewer.SetPoint and not _registry[entry.name] then
+            local def = BravLib.Storage.GetDefaults()
+            local defPos = def and def.positions and def.positions[entry.name]
+            local defXY = { x = defPos and defPos.x or 0, y = defPos and defPos.y or 0 }
+
+            Mover:Register(entry.name, viewer, function()
+                local db = BravLib.Storage.GetDB()
+                if not db then return end
+                db.positions = db.positions or {}
+                db.positions[entry.name] = db.positions[entry.name] or {}
+                return db.positions[entry.name], "x", "y"
+            end, defXY, { category = "cooldown" })
+
+            count = count + 1
+        end
+    end
+
+    if count > 0 then
+        _cdmRegistered = true
+        BravLib.Debug("Mover: " .. count .. " CDM Viewers registered")
+    end
+end
+
+-- ============================================================================
 -- RESTORE ALL POSITIONS (utilisé au chargement + switch de profil)
 -- ============================================================================
 
 local function RestoreAllPositions()
   for name, entry in pairs(_registry) do
     if entry.frame and entry.dbFunc then
-      local db, keyX, keyY = entry.dbFunc()
-      if db and keyX and keyY and db[keyX] and db[keyY] then
-        local fs = entry.frame:GetScale() or 1
-        entry.frame:ClearAllPoints()
-        entry.frame:SetPoint("CENTER", UIParent, "CENTER", db[keyX] / fs, db[keyY] / fs)
+      -- Skip CDM viewers en combat
+      if InCombatLockdown() and entry.category == "cooldown" then
+        -- retry apres combat
+      else
+        local db, keyX, keyY = entry.dbFunc()
+        if db and keyX and keyY and db[keyX] and db[keyY] then
+          -- Ne repositionner que si la position a ete modifiee (pas 0,0)
+          if db[keyX] ~= 0 or db[keyY] ~= 0 or entry.category ~= "cooldown" then
+            local fs = entry.frame:GetScale() or 1
+            entry.frame:ClearAllPoints()
+            entry.frame:SetPoint("CENTER", UIParent, "CENTER", db[keyX] / fs, db[keyY] / fs)
+          end
+        end
       end
     end
   end
@@ -1062,6 +1135,11 @@ end
 BravLib.Event.Register("PLAYER_ENTERING_WORLD", function()
   C_Timer.After(1, function()
     EnsureUFRegistered()
+    RestoreAllPositions()
+  end)
+  -- CDM viewers peuvent se creer tard
+  C_Timer.After(2, function()
+    RegisterCDMViewers()
     RestoreAllPositions()
   end)
 end)

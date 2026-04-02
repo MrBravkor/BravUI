@@ -543,13 +543,30 @@ local function BuildSpecs(key, onRefresh)
       label = L["uf_show_group_label"] }
     rc[#rc + 1] = { type = "slider", db = pre .. "groupLabelSize",
       label = L["uf_group_label_size"], min = 6, max = 18, step = 1 }
+    rc[#rc + 1] = { type = "slider", db = pre .. "groupLabelOffsetX",
+      label = L["uf_group_label_offset_x"] or "Label décalage X", min = -30, max = 30, step = 1 }
+    rc[#rc + 1] = { type = "slider", db = pre .. "groupLabelOffsetY",
+      label = L["uf_group_label_offset_y"] or "Label décalage Y", min = -30, max = 30, step = 1 }
     rc[#rc + 1] = { type = "divider" }
     rc[#rc + 1] = { type = "toggle", db = pre .. "showRole",   label = L["uf_show_role"] }
+    rc[#rc + 1] = { type = "slider", db = pre .. "roleIconSize",
+      label = L["uf_role_size"] or "Taille rôle", min = 8, max = 32, step = 1 }
+    rc[#rc + 1] = { type = "anchor_grid", db = pre .. "roleIconAnchor",
+      label = L["uf_role_anchor"] or "Ancrage rôle" }
     rc[#rc + 1] = { type = "slider", db = pre .. "roleIconOffsetX",
       label = L["uf_role_offset_x"], min = -30, max = 30, step = 1 }
     rc[#rc + 1] = { type = "slider", db = pre .. "roleIconOffsetY",
       label = L["uf_role_offset_y"], min = -30, max = 30, step = 1 }
+    rc[#rc + 1] = { type = "divider" }
     rc[#rc + 1] = { type = "toggle", db = pre .. "showLeader", label = L["uf_show_leader"] }
+    rc[#rc + 1] = { type = "slider", db = pre .. "leaderIconSize",
+      label = L["uf_leader_size"] or "Taille leader", min = 8, max = 32, step = 1 }
+    rc[#rc + 1] = { type = "anchor_grid", db = pre .. "leaderIconAnchor",
+      label = L["uf_leader_anchor"] or "Ancrage leader" }
+    rc[#rc + 1] = { type = "slider", db = pre .. "leaderIconOffsetX",
+      label = L["uf_leader_offset_x"] or "Leader décalage X", min = -30, max = 30, step = 1 }
+    rc[#rc + 1] = { type = "slider", db = pre .. "leaderIconOffsetY",
+      label = L["uf_leader_offset_y"] or "Leader décalage Y", min = -30, max = 30, step = 1 }
 
     ins({ type = "group", label = L["uf_group_raid"], collapsed = true, children = rc })
   end
@@ -561,11 +578,24 @@ local function BuildSpecs(key, onRefresh)
       label = L["uf_member_spacing"], min = 0, max = 20, step = 1 }
     gc[#gc + 1] = { type = "divider" }
     gc[#gc + 1] = { type = "toggle", db = pre .. "showRole",   label = L["uf_show_role"] }
+    gc[#gc + 1] = { type = "slider", db = pre .. "roleIconSize",
+      label = L["uf_role_size"] or "Taille rôle", min = 8, max = 32, step = 1 }
+    gc[#gc + 1] = { type = "anchor_grid", db = pre .. "roleIconAnchor",
+      label = L["uf_role_anchor"] or "Ancrage rôle" }
     gc[#gc + 1] = { type = "slider", db = pre .. "roleIconOffsetX",
       label = L["uf_role_offset_x"], min = -30, max = 30, step = 1 }
     gc[#gc + 1] = { type = "slider", db = pre .. "roleIconOffsetY",
       label = L["uf_role_offset_y"], min = -30, max = 30, step = 1 }
+    gc[#gc + 1] = { type = "divider" }
     gc[#gc + 1] = { type = "toggle", db = pre .. "showLeader", label = L["uf_show_leader"] }
+    gc[#gc + 1] = { type = "slider", db = pre .. "leaderIconSize",
+      label = L["uf_leader_size"] or "Taille leader", min = 8, max = 32, step = 1 }
+    gc[#gc + 1] = { type = "anchor_grid", db = pre .. "leaderIconAnchor",
+      label = L["uf_leader_anchor"] or "Ancrage leader" }
+    gc[#gc + 1] = { type = "slider", db = pre .. "leaderIconOffsetX",
+      label = L["uf_leader_offset_x"] or "Leader décalage X", min = -30, max = 30, step = 1 }
+    gc[#gc + 1] = { type = "slider", db = pre .. "leaderIconOffsetY",
+      label = L["uf_leader_offset_y"] or "Leader décalage Y", min = -30, max = 30, step = 1 }
 
     ins({ type = "group", label = L["uf_group_group"], collapsed = true, children = gc })
   end

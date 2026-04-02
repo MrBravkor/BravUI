@@ -2187,23 +2187,33 @@ function Chat:Setup()
   local qjToast = _G.QuickJoinToastButton and _G.QuickJoinToastButton.Toast
   if qjToast then qjToast:Hide(); qjToast:SetAlpha(0) end
 
-  -- Anchor cf1 inside panel
+  -- Anchor cf1 inside panel (taint-safe: no direct override of SetPoint/ClearAllPoints)
   if cf1 then
     cf1:SetClampRectInsets(0, 0, 0, 0)
     cf1:SetClampedToScreen(false)
     cf1:SetMovable(true)
     cf1:SetUserPlaced(true)
-    local realSetPoint = cf1.SetPointBase or cf1.SetPoint
-    local realClearAll = cf1.ClearAllPointsBase or cf1.ClearAllPoints
+
+    local _forceScheduled = false
     local function ForcePosition()
+      _forceScheduled = false
       if not self.panel then return end
-      realClearAll(cf1)
+      cf1:ClearAllPoints()
       local tabZone = (db.tabHeight or 15) + 3
-      realSetPoint(cf1, "TOPLEFT", self.panel, "TOPLEFT", INSET, -tabZone)
+      cf1:SetPoint("TOPLEFT", self.panel, "TOPLEFT", INSET, -tabZone)
       cf1:SetSize((db.panelWidth or 450) - INSET * 2, (db.panelHeight or 220) - tabZone - GetInfoBarH())
     end
-    cf1.SetPoint = function() ForcePosition() end
-    cf1.ClearAllPoints = function(self2, ...) realClearAll(self2) end
+
+    -- Schedule reposition on next frame (runs in clean context, no taint)
+    local function ScheduleForcePosition()
+      if _forceScheduled then return end
+      _forceScheduled = true
+      C_Timer.After(0, ForcePosition)
+    end
+
+    -- Hook instead of override — hooksecurefunc does NOT propagate taint
+    hooksecurefunc(cf1, "SetPoint", ScheduleForcePosition)
+
     ForcePosition()
     C_Timer.After(0, ForcePosition)
     C_Timer.After(1, ForcePosition)
