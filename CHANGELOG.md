@@ -81,6 +81,21 @@ Meter v2 enrichi : opacité par zone, segment menu intelligent, panel de partage
 - **Import profils** — `DeepApply` au lieu de `TableMerge`
 - **Panel opacité** — `RefreshPanel()` dans `Panel.Setup()` pour ancrer les textures
 
+### Modifications
+
+- **Core/Init.lua** — defaults meter (`opacity`, `showBackground`, `headerOpacity`, `footerOpacity`, `segmentMeta`), defaults CDM (`colorMode`, `textAnchor`, `showBackground`, `bgColor`), positions CastBar/ClassPower, welcome message, `roleIconStyle`, `barTextMode`/`barTextCustom`
+- **Meter/Meter.lua** — `SaveSegmentMeta()` enregistre le contexte instance à chaque combat, `GetSegmentMeta()` API publique, reset nettoie les métadonnées, test statique (`/bd testfix`), ticker animé 0.2s
+- **Meter/Bars.lua** — panel bg split (`_tabBg` + `_bg` + footer), opacité indépendante par zone, segment menu refait (liste plate + meta instance), panel de partage (dropdown + slider + envoyer), custom tooltip BravUI, secret string protection
+- **Cooldown/ResourceBar.lua** — réécriture : position libre, `colorMode` (power/class/custom), fond activable + couleur, texte avec format/ancrage/taille/couleur
+- **Cooldown/ClassPower.lua** — `SetSegmentColor` 3 modes, `UpdateBackground`, hook enrichi (taille, fond, position live)
+- **Cooldown/CastBar.lua** — Move system, `ApplyBackground`, preview mode, hook enrichi (taille, icône, fond, texte, position live)
+- **BravUI_Menu/Pages/Cooldown.lua** — onglets + sous-onglets, Ressource/Puissance/Incantation : sous-onglets Général/Positions/Couleur/Fond/Texte
+- **BravUI_Menu/Core/Widgets.lua** — `button_select` : support `disabled`, `subtext` ; `input` : boutons Valider/Reset
+- **BravLib/Storage.lua** — export v2 diff defaults, import `DeepApply`, suppression LZW
+- **BravLib/Serialize.lua** — ajout `DiffTable` (diff récursif avec filtre clés inconnues)
+- **BravLib/Utils.lua** — ajout `DeepApply` (merge profond avec écrasement)
+- **BravLib/Media.lua** — 3 styles icônes de rôle (Blizzard/BravUI/FFXIV), 5 styles icônes de classe (flat/flatborder2/round/square/warcraftflat × 13 classes)
+
 ---
 
 ## [2.0.8-alpha] — 02/04/2026
