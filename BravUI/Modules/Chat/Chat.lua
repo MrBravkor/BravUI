@@ -1632,17 +1632,7 @@ local function RestoreWhisperTabs()
       local cf = FindUntaggedTempFrame()
       if cf then
         TagWhisperFrame(cf, name)
-        local shortName = name:match("^([^%-]+)") or name
-        if shortName ~= name then
-          local cfName = cf:GetName()
-          if cfName then
-            local tab = _G[cfName .. "Tab"]
-            if tab then
-              local txt = tab.Text or _G[cfName .. "TabText"]
-              if txt and txt.SetText then txt:SetText(shortName) end
-            end
-          end
-        end
+        -- tab text not modified to avoid taint propagation into ChatHistory
       end
       cf = FindWhisperFrame(name)
       if cf and data.messages and #data.messages > 0 then
@@ -1664,27 +1654,7 @@ local function InstallWhisperHooks()
   hooksecurefunc("FCF_OpenTemporaryWindow", function(chatType, ...)
     if Chat._restoringWhispers then return end
     if chatType ~= "WHISPER" and chatType ~= "BN_WHISPER" then return end
-    C_Timer.After(0.1, function()
-      TagAllTempFrames()
-      if CHAT_FRAMES then
-        for _, frameName in ipairs(CHAT_FRAMES) do
-          local cf = _G[frameName]
-          if cf and cf.isTemporary then
-            local tab = _G[frameName .. "Tab"]
-            if tab then
-              local txt = tab.Text or _G[frameName .. "TabText"]
-              if txt and txt.GetText then
-                local ok, raw = pcall(txt.GetText, txt)
-                if ok and raw and not IsSecret(raw) and type(raw) == "string" then
-                  local short = raw:match("^([^%-]+)")
-                  if short and short ~= raw then txt:SetText(short) end
-                end
-              end
-            end
-          end
-        end
-      end
-    end)
+    C_Timer.After(0.1, function() TagAllTempFrames() end)
   end)
 
   local _lastInTime, _lastOutTime = {}, {}

@@ -538,7 +538,8 @@ function AFK:Enable()
   self:EnsureTicker()
 
   local function EvaluateAFK()
-    local isAFK = UnitIsAFK("player")
+    local raw = UnitIsAFK("player")
+    local isAFK = (raw == true) or (raw == 1)
     if isAFK and not AFK.isAFK then
       AFK:EnterAFK()
     elseif not isAFK and AFK.isAFK then

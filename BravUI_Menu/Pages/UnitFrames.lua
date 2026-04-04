@@ -549,6 +549,13 @@ local function BuildSpecs(key, onRefresh)
       label = L["uf_group_label_offset_y"] or "Label décalage Y", min = -30, max = 30, step = 1 }
     rc[#rc + 1] = { type = "divider" }
     rc[#rc + 1] = { type = "toggle", db = pre .. "showRole",   label = L["uf_show_role"] }
+    rc[#rc + 1] = { type = "dropdown", db = "unitframes.roleIconStyle",
+      label = L["uf_role_icon_style"] or "Style des icônes de rôle",
+      values = {
+        { value = "blizzard", text = "Blizzard" },
+        { value = "bravui",   text = "BravUI" },
+        { value = "ffxiv",    text = "FFXIV" },
+      }}
     rc[#rc + 1] = { type = "slider", db = pre .. "roleIconSize",
       label = L["uf_role_size"] or "Taille rôle", min = 8, max = 32, step = 1 }
     rc[#rc + 1] = { type = "anchor_grid", db = pre .. "roleIconAnchor",
@@ -578,6 +585,13 @@ local function BuildSpecs(key, onRefresh)
       label = L["uf_member_spacing"], min = 0, max = 20, step = 1 }
     gc[#gc + 1] = { type = "divider" }
     gc[#gc + 1] = { type = "toggle", db = pre .. "showRole",   label = L["uf_show_role"] }
+    gc[#gc + 1] = { type = "dropdown", db = "unitframes.roleIconStyle",
+      label = L["uf_role_icon_style"] or "Style des icônes de rôle",
+      values = {
+        { value = "blizzard", text = "Blizzard" },
+        { value = "bravui",   text = "BravUI" },
+        { value = "ffxiv",    text = "FFXIV" },
+      }}
     gc[#gc + 1] = { type = "slider", db = pre .. "roleIconSize",
       label = L["uf_role_size"] or "Taille rôle", min = 8, max = 32, step = 1 }
     gc[#gc + 1] = { type = "anchor_grid", db = pre .. "roleIconAnchor",

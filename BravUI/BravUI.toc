@@ -2,7 +2,7 @@
 ## Title: |cFFFFFFFFBrav|r|cFF00FFFFUI|r
 ## Notes: Core UI replacement
 ## Author: Bravkor
-## Version: 2.0.8-alpha
+## Version: 2.0.9-alpha
 ## Group: BravUI
 ## Dependencies: BravUI_Lib
 ## SavedVariables: BravUI_DB
@@ -25,11 +25,11 @@ Modules/CombatLog/Init.lua
 Modules/ActionBars/ActionBars.lua
 Modules/Chat/Chat.lua
 
-#Modules/Cooldown/Init.lua
-#Modules/Cooldown/Skin.lua
-#Modules/Cooldown/ResourceBar.lua
-#Modules/Cooldown/CastBar.lua
-#Modules/Cooldown/ClassPower.lua
+Modules/Cooldown/Init.lua
+Modules/Cooldown/Skin.lua
+Modules/Cooldown/ResourceBar.lua
+Modules/Cooldown/CastBar.lua
+Modules/Cooldown/ClassPower.lua
 
 Modules/Meter/Bars.lua
 Modules/Meter/MPlus.lua

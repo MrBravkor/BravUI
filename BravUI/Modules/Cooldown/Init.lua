@@ -94,17 +94,24 @@ end
 function NS.GetViewerIconBounds(viewer)
     if not viewer then return nil end
     local db = BravLib.API.GetModule("cooldown")
-    local maxCols = (db and db.cdm and db.cdm.maxColumns) or 5
+    local vKey = viewer == _G["EssentialCooldownViewer"] and "essential"
+             or viewer == _G["UtilityCooldownViewer"] and "utility"
+             or viewer == _G["BuffIconCooldownViewer"] and "buffIcon"
+             or "essential"
+    local vdb = db and db.cdm and db.cdm[vKey]
+    local maxCols = (vdb and vdb.maxColumns) or 5
 
     local items = {}
-    for _, child in ipairs({ viewer:GetChildren() }) do
-        if child and child.layoutIndex and child:IsShown() then
+    local children = { viewer:GetChildren() }
+    for idx, child in ipairs(children) do
+        if child and child:IsShown() and child.Icon then
+            child._bravSortIdx = child.layoutIndex or idx
             items[#items + 1] = child
         end
     end
     if #items == 0 then return nil end
 
-    table.sort(items, function(a, b) return a.layoutIndex < b.layoutIndex end)
+    table.sort(items, function(a, b) return a._bravSortIdx < b._bravSortIdx end)
 
     local first = items[1]
     local lastInRow = items[math.min(maxCols, #items)]
@@ -172,13 +179,39 @@ local function ShortenKey(key)
     return key
 end
 
+-- WoW 12.x: bindings use "CLICK FrameName:LeftButton" format
+local CMD_TO_FRAME = {
+    ACTIONBUTTON             = "ActionButton",
+    MULTIACTIONBAR1BUTTON    = "MultiBarBottomLeftButton",
+    MULTIACTIONBAR2BUTTON    = "MultiBarBottomRightButton",
+    MULTIACTIONBAR3BUTTON    = "MultiBarRightButton",
+    MULTIACTIONBAR4BUTTON    = "MultiBarLeftButton",
+    MULTIACTIONBAR5BUTTON    = "MultiBar5Button",
+    MULTIACTIONBAR6BUTTON    = "MultiBar6Button",
+    MULTIACTIONBAR7BUTTON    = "MultiBar7Button",
+}
+
+local function GetBindingForCmd(cmd)
+    local key = GetBindingKey(cmd)
+    if key then return key end
+    -- Fallback: CLICK format (WoW 12.x / Midnight)
+    local prefix, idx = cmd:match("^(.-)(%d+)$")
+    if prefix and idx then
+        local frameName = CMD_TO_FRAME[prefix]
+        if frameName then
+            key = GetBindingKey("CLICK " .. frameName .. idx .. ":LeftButton")
+        end
+    end
+    return key
+end
+
 local function FindKeybindForSlots(slots)
     if not slots then return nil end
     local shortest = nil
     for _, slot in ipairs(slots) do
         local cmd = SLOT_TO_BINDING[slot]
         if cmd then
-            local key1 = GetBindingKey(cmd)
+            local key1 = GetBindingForCmd(cmd)
             if key1 then
                 local short = ShortenKey(key1)
                 if short and (not shortest or #short < #shortest) then
@@ -406,6 +439,14 @@ bootFrame:SetScript("OnEvent", function(self)
 
     C_Timer.After(0.5, TrySkin)
     C_Timer.After(2, CheckCDMAndInit)
+
+    -- Hook menu refresh
+    BravLib.Hooks.Register("APPLY_COOLDOWN_CDM", function()
+        NS.RefreshSkin()
+        if NS.Skin and NS.Skin.ApplyVisibility then
+            NS.Skin:ApplyVisibility()
+        end
+    end)
 
     -- Keybind refresh events
     local kbFrame = CreateFrame("Frame")

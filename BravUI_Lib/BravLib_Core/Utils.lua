@@ -25,6 +25,20 @@ function BravLib.TableMerge(target, source)
     return target
 end
 
+function BravLib.DeepApply(target, source)
+    for k, v in pairs(source) do
+        if type(v) == "table" then
+            if type(target[k]) ~= "table" then
+                target[k] = {}
+            end
+            BravLib.DeepApply(target[k], v)
+        else
+            target[k] = v
+        end
+    end
+    return target
+end
+
 function BravLib.CopyTable(t)
     if type(t) ~= "table" then return t end
     local copy = {}

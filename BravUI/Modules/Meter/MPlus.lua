@@ -1239,6 +1239,8 @@ end
 -- ---------------------------------------------------------------------------
 
 RegisterCallback("RUN_START", function()
+    local db = GetDB()
+    if db.timerEnabled == false then return end
     Timer.Show()
 end)
 
@@ -1268,7 +1270,10 @@ BravLib.Event.Register("PLAYER_ENTERING_WORLD", function()
                 if not Tracker.IsRunning() then
                     -- Attempt to resume
                     InitRun()
-                    Timer.Show()
+                    local db = GetDB()
+                    if db.timerEnabled ~= false then
+                        Timer.Show()
+                    end
                 end
             end
         end
@@ -1972,6 +1977,8 @@ end
 -- ---------------------------------------------------------------------------
 
 RegisterCallback("RUN_END", function(_, run)
+    local db = GetDB()
+    if db.summaryEnabled == false then return end
     C_Timer.After(1, function()
         Tracker.ShowSummary(run)
     end)

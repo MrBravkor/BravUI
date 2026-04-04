@@ -69,6 +69,36 @@ function BD:GetCombatTime()
 end
 
 -- ============================================================================
+-- SEGMENT METADATA (instance tracking)
+-- ============================================================================
+
+local function SaveSegmentMeta()
+    local db = GetDB()
+    if not db then return end
+    if not db.segmentMeta then db.segmentMeta = {} end
+
+    local inInstance, instanceType = IsInInstance()
+    local name, _, difficultyID, difficultyName = GetInstanceInfo()
+
+    -- Snapshot des segments actuels pour tagger les nouveaux
+    local segs = DM:GetSegments()
+    if not segs then return end
+
+    for _, seg in ipairs(segs) do
+        local segName = seg.name and tostring(seg.name) or nil
+        if segName and not db.segmentMeta[segName] then
+            db.segmentMeta[segName] = {
+                isInstance     = inInstance or false,
+                instanceType   = instanceType or "none",
+                instanceName   = inInstance and name or nil,
+                difficultyName = inInstance and difficultyName or nil,
+                difficultyID   = inInstance and difficultyID or nil,
+            }
+        end
+    end
+end
+
+-- ============================================================================
 -- COMBAT EVENTS
 -- ============================================================================
 
@@ -77,6 +107,8 @@ local function OnRegenDisabled()
         inCombat = true
         combatStartTime = GetTime()
         StartRefreshTicker()
+        -- Enregistrer le contexte instance pour ce segment
+        C_Timer.After(0.5, SaveSegmentMeta)
     end
 end
 
@@ -98,6 +130,7 @@ local function OnEncounterStart()
     inCombat = true
     combatStartTime = GetTime()
     StartRefreshTicker()
+    C_Timer.After(0.5, SaveSegmentMeta)
 end
 
 local function OnEncounterEnd()
@@ -112,7 +145,16 @@ end
 
 function BD:Reset()
     DM:Reset()
+    -- Nettoyer les métadonnées de segments
+    local db = GetDB()
+    if db then db.segmentMeta = {} end
     RefreshAll()
+end
+
+function BD:GetSegmentMeta(segName)
+    local db = GetDB()
+    if not db or not db.segmentMeta then return nil end
+    return db.segmentMeta[segName]
 end
 
 --- Génère un rapport formaté pour un mode/segment donné.
@@ -246,7 +288,7 @@ local function ToggleTestData()
             Panel.SetTestData(dmgData, healData, sessionInfo)
         end
 
-        testTicker = C_Timer.NewTicker(0.8, function()
+        testTicker = C_Timer.NewTicker(0.2, function()
             if not testActive then return end
             ShuffleTestData(dmgData)
             ShuffleTestData(healData)
@@ -259,6 +301,35 @@ local function ToggleTestData()
 
         testActive = true
         BravLib.Print("Mode test |cff33ff33activ\195\169|r — /bd test pour d\195\169sactiver.")
+    end
+end
+
+local function ToggleTestDataStatic()
+    local Panel = BD.Panel
+
+    if testActive then
+        if testTicker then testTicker:Cancel(); testTicker = nil end
+        if Panel and Panel.ClearTestData then Panel.ClearTestData() end
+        testActive = false
+        RefreshAll()
+    else
+        if Panel and Panel.Setup then Panel.Setup() end
+
+        local sessionInfo = {
+            duration = 180,
+            totalAmount = 1500000,
+            maxAmount = 187420,
+            name = "Test",
+        }
+
+        local dmgData = GenerateTestPlayers(TEST_CLASSES, 50, 187420, 62473)
+        local healData = GenerateTestPlayers(TEST_CLASSES_HEAL, 50, 142300, 47433)
+
+        if Panel and Panel.SetTestData then
+            Panel.SetTestData(dmgData, healData, sessionInfo)
+        end
+
+        testActive = true
     end
 end
 
@@ -328,6 +399,9 @@ function BD:HandleSlash(msg)
 
     if msg == "test" then
         ToggleTestData()
+
+    elseif msg == "testfix" then
+        ToggleTestDataStatic()
 
     elseif msg == "reset" then
         self:Reset()

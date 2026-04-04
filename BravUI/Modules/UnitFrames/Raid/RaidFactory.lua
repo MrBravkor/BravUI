@@ -7,11 +7,15 @@ BravUI.RaidFactory = BravUI.RaidFactory or {}
 
 local TEX = "Interface/Buttons/WHITE8x8"
 
-local ROLE_TEX = {
-  TANK    = BravLib.Media.Get("icon", "tank"),
-  DAMAGER = BravLib.Media.Get("icon", "dps"),
-  HEALER  = BravLib.Media.Get("icon", "healer"),
-}
+local function GetRoleTex()
+  local style = (BravLib.API.GetModule("unitframes") or {}).roleIconStyle or "bravui"
+  local prefix = style:lower() .. "_"
+  return {
+    TANK    = BravLib.Media.Get("icon", prefix .. "tank"),
+    DAMAGER = BravLib.Media.Get("icon", prefix .. "dps"),
+    HEALER  = BravLib.Media.Get("icon", prefix .. "healer"),
+  }
+end
 
 -- ============================================================================
 -- SHARED HELPERS
@@ -39,7 +43,7 @@ local GROUP_LABEL_HEIGHT = 14
 
 local function SetRoleTex(iconTex, role)
   if not iconTex then return end
-  local tex = ROLE_TEX[role]
+  local tex = GetRoleTex()[role]
   if tex then
     iconTex:SetTexture(tex)
     iconTex:SetVertexColor(1, 1, 1, 1)

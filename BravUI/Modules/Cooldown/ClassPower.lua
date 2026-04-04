@@ -148,16 +148,44 @@ function Skin:HideSegments()
 end
 
 function Skin:SetSegmentColor(powerType)
-    local c = PowerBarColor and PowerBarColor[powerType]
+    local db = GetDB()
+    local mode = db.colorMode or "power"
     local r, g, b = 0.7, 0.7, 0.7
-    if c and c.r then
-        r, g, b = c.r, c.g, c.b
+
+    if mode == "class" then
+        r, g, b = U.GetClassColor("player")
+    elseif mode == "custom" then
+        local bc = db.barColor
+        r = bc and bc.r or 0.7
+        g = bc and bc.g or 0.7
+        b = bc and bc.b or 0.7
+    else
+        local c = PowerBarColor and PowerBarColor[powerType]
+        if c and c.r then
+            r, g, b = c.r, c.g, c.b
+        end
     end
 
     for i = 1, (tonumber(tostring(self.segmentsMax)) or 0) do
         local s = self.segments[i]
         if s then
             s:SetStatusBarColor(r, g, b)
+        end
+    end
+end
+
+function Skin:UpdateBackground()
+    local db = GetDB()
+    for i = 1, (tonumber(tostring(self.segmentsMax)) or 0) do
+        local s = self.segments[i]
+        if s and s._bg then
+            if db.showBackground ~= false then
+                local bc = db.bgColor
+                s._bg:SetVertexColor(bc and bc.r or 0, bc and bc.g or 0, bc and bc.b or 0, db.bgAlpha or 0.55)
+                s._bg:Show()
+            else
+                s._bg:Hide()
+            end
         end
     end
 end
@@ -347,6 +375,21 @@ local function TryInit()
         runeTicker = C_Timer.NewTicker(0.1, UpdateClassPower)
     end
 
+    -- Register in Move system
+    if BravUI.Mover and BravUI.Mover.Register and S.frame then
+        local def = BravLib.Storage.GetDefaults()
+        local defPos = def and def.positions and def.positions["Puissance Classe"]
+        local defXY = { x = defPos and defPos.x or 0, y = defPos and defPos.y or -200 }
+
+        BravUI.Mover:Register("Puissance Classe", S.frame, function()
+            local pdb = BravLib.Storage.GetDB()
+            if not pdb then return end
+            pdb.positions = pdb.positions or {}
+            pdb.positions["Puissance Classe"] = pdb.positions["Puissance Classe"] or {}
+            return pdb.positions["Puissance Classe"], "x", "y"
+        end, defXY, { category = "cooldown" })
+    end
+
     initialized = true
 end
 
@@ -432,9 +475,27 @@ function ClassPowerMod:Enable()
     BravLib.Hooks.Register("APPLY_COOLDOWN_CLASSPOWER", function()
         local S = NS.ClassPowerSkin
         if not S or not S.frame then return end
-        S:UpdateBorderColors()
+
         local db = GetDB()
-        S:UpdatePosition(db)
+
+        S:UpdateBorderColors()
+        S:UpdateBackground()
+
+        -- Apply size
+        S.frame:SetHeight(db.height or 10)
+        S.frame:SetWidth(db.width or 220)
+        local n = tonumber(tostring(S.segmentsMax)) or 0
+        if n > 0 then S:EnsureSegments(n, db) end
+
+        -- Apply position live from sliders
+        local posDB = BravLib.Storage.GetDB()
+        local pos = posDB and posDB.positions and posDB.positions["Puissance Classe"]
+        if pos then
+            S.frame:ClearAllPoints()
+            local fs = S.frame:GetScale() or 1
+            S.frame:SetPoint("CENTER", UIParent, "CENTER", (pos.x or 0) / fs, (pos.y or 0) / fs)
+        end
+
         UpdateClassPower()
     end)
 end

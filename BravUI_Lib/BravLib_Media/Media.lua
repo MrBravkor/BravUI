@@ -34,10 +34,35 @@ BravLib.Media.Register("font", "default", "Interface/AddOns/BravUI_Lib/BravLib_M
 BravLib.Media.Register("font", "uf",      "Interface/AddOns/BravUI_Lib/BravLib_Media/Fonts/Russo_One.ttf")
 BravLib.Media.Register("font", "icons", "Interface/AddOns/BravUI_Lib/BravLib_Media/Fonts/Font_Icons.ttf")
 
--- Role icons
-BravLib.Media.Register("icon", "dps",    "Interface/AddOns/BravUI_Lib/BravLib_Media/Icons/DPS.tga")
-BravLib.Media.Register("icon", "healer", "Interface/AddOns/BravUI_Lib/BravLib_Media/Icons/Healer.tga")
-BravLib.Media.Register("icon", "tank",   "Interface/AddOns/BravUI_Lib/BravLib_Media/Icons/Tank.tga")
+-- Role icons (legacy — default BravUI set)
+BravLib.Media.Register("icon", "dps",    "Interface/AddOns/BravUI_Lib/BravLib_Media/Icons/RoleIcons/BravUI/DPS.tga")
+BravLib.Media.Register("icon", "healer", "Interface/AddOns/BravUI_Lib/BravLib_Media/Icons/RoleIcons/BravUI/Healer.tga")
+BravLib.Media.Register("icon", "tank",   "Interface/AddOns/BravUI_Lib/BravLib_Media/Icons/RoleIcons/BravUI/Tank.tga")
+
+-- Role icon sets (per style)
+local ROLE_PATH = "Interface/AddOns/BravUI_Lib/BravLib_Media/Icons/RoleIcons/"
+local ROLE_STYLES = { "Blizzard", "BravUI", "FFXIV" }
+for _, style in ipairs(ROLE_STYLES) do
+  local prefix = style:lower()
+  BravLib.Media.Register("icon", prefix .. "_dps",    ROLE_PATH .. style .. "/DPS.tga")
+  BravLib.Media.Register("icon", prefix .. "_healer", ROLE_PATH .. style .. "/Healer.tga")
+  BravLib.Media.Register("icon", prefix .. "_tank",   ROLE_PATH .. style .. "/Tank.tga")
+end
+
+-- Class icons (per style)
+local CLASS_ICON_PATH = "Interface/AddOns/BravUI_Lib/BravLib_Media/Icons/ClasseIcons/"
+local CLASS_ICON_STYLES = { "flat", "flatborder2", "round", "square", "warcraftflat" }
+local CLASS_NAMES = {
+  "deathknight", "demonhunter", "druid", "evoker", "hunter",
+  "mage", "monk", "paladin", "priest", "rogue",
+  "shaman", "warlock", "warrior",
+}
+for _, style in ipairs(CLASS_ICON_STYLES) do
+  for _, class in ipairs(CLASS_NAMES) do
+    BravLib.Media.Register("classicon", style .. "_" .. class,
+      CLASS_ICON_PATH .. class .. "_" .. style .. ".tga")
+  end
+end
 
 -- Logo
 BravLib.Media.Register("texture", "logo", "Interface/AddOns/BravUI_Lib/BravLib_Media/Logo/BravUI_64x64.tga")

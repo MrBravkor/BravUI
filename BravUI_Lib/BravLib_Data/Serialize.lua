@@ -97,6 +97,37 @@ function BravLib.Serialize(tbl)
 end
 
 -- ============================================================================
+-- DIFF TABLE (retourne uniquement les valeurs differentes des defaults)
+-- ============================================================================
+
+local function DiffTable(data, ref)
+    if type(data) ~= "table" or type(ref) ~= "table" then return data end
+
+    local diff = {}
+    local hasKeys = false
+
+    for k, v in pairs(data) do
+        local refV = ref[k]
+        if refV == nil then
+            -- cle inconnue des defaults, on ignore
+        elseif type(v) == "table" and type(refV) == "table" then
+            local sub = DiffTable(v, refV)
+            if sub then
+                diff[k] = sub
+                hasKeys = true
+            end
+        elseif v ~= refV then
+            diff[k] = v
+            hasKeys = true
+        end
+    end
+
+    return hasKeys and diff or nil
+end
+
+BravLib.DiffTable = DiffTable
+
+-- ============================================================================
 -- DESERIALIZE (parser securise, pas de loadstring)
 -- ============================================================================
 

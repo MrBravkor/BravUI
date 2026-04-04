@@ -505,7 +505,7 @@ local function CreateOverlay(entry, name)
     else
       panel:SetPoint("TOP", ov, "BOTTOM", 0, -4)
     end
-    panel:Show()
+    if not ov._locked then panel:Show() end
   end)
   ov:SetScript("OnLeave", ScheduleHide)
   panel:SetScript("OnEnter", CancelHide)
@@ -515,6 +515,7 @@ local function CreateOverlay(entry, name)
   -- DRAG HANDLERS (cursor-based with snap)
   -- ========================================================================
   ov:SetScript("OnMouseDown", function(self, button)
+    if self._locked then return end
     if button == "LeftButton" and not InCombatLockdown() then
       local scale = UIParent:GetEffectiveScale()
       local curX, curY = GetCursorPosition()
@@ -600,6 +601,14 @@ local function CreateOverlay(entry, name)
     frame:ClearAllPoints()
     frame:SetPoint("CENTER", UIParent, "CENTER", finalX / fs, finalY / fs)
     frame._moverDragging = nil
+
+    -- ResourceBar must reposition BEFORE overlay re-anchors (coverFrame reads bar position)
+    if entry.category == "cooldown" and BravUI.Cooldown then
+      if BravUI.Cooldown.RepositionResourceBar then
+        pcall(BravUI.Cooldown.RepositionResourceBar)
+      end
+    end
+
     AnchorOverlayToVisual(self, cover)
 
     if guideX then ShowGuideV(guideX) else if _guideV then _guideV:Hide() end end
@@ -629,6 +638,38 @@ function Mover:ShowOverlay(name)
     AnchorOverlayToVisual(entry.overlay, cover)
     entry.overlay:Show()
     if entry.overlay._updateCoords then entry.overlay._updateCoords() end
+  end
+end
+
+function Mover:GetEntry(name)
+  return _registry[name]
+end
+
+function Mover:SetCoverFrame(name, cover)
+  local entry = _registry[name]
+  if not entry then return end
+  entry.coverFrame = cover
+  -- Re-anchor overlay if visible
+  if entry.overlay and entry.overlay:IsShown() then
+    AnchorOverlayToVisual(entry.overlay, cover or entry.frame)
+  end
+end
+
+function Mover:SetLocked(name, locked)
+  local entry = _registry[name]
+  if entry then
+    entry.locked = locked
+    if entry.overlay then
+      entry.overlay._locked = locked
+      -- Visual feedback: dim the overlay when locked
+      if entry.overlay._label then
+        if locked then
+          entry.overlay._label:SetAlpha(0.5)
+        else
+          entry.overlay._label:SetAlpha(1)
+        end
+      end
+    end
   end
 end
 
@@ -937,6 +978,17 @@ function Mover:Enter()
     if ns.SetPreviewMode then pcall(ns.SetPreviewMode, true) end
   end
 
+  -- Refresh CDM skin (layout respecte les settings menu, delai pour laisser Blizzard finir)
+  if BravUI.Cooldown and BravUI.Cooldown.RefreshSkin then
+    C_Timer.After(0.2, function()
+      pcall(BravUI.Cooldown.RefreshSkin)
+      -- Hide/show ResourceBar mover based on anchor mode
+      if BravUI.Cooldown.UpdateResourceBarMover then
+        pcall(BravUI.Cooldown.UpdateResourceBarMover)
+      end
+    end)
+  end
+
   BravLib.Print("Edit Mode |cff00ff00ON|r — Deplace tes elements puis clique Terminer.")
 end
 
@@ -958,6 +1010,13 @@ function Mover:Exit()
   HideGrid()
   if _controlPanel then
     _controlPanel:Hide()
+  end
+
+  -- Re-appliquer le skin CDM apres repositionnement
+  if BravUI.Cooldown and BravUI.Cooldown.RefreshAll then
+    C_Timer.After(0.1, function()
+      pcall(BravUI.Cooldown.RefreshAll)
+    end)
   end
 
   BravLib.Print("Edit Mode |cffff0000OFF|r — Positions sauvegardees.")

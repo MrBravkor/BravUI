@@ -71,6 +71,7 @@ local function CreateCastBar(anchor)
     local fontPath = U.GetFont()
     local db = GetDB()
     local h = db.height or BAR_HEIGHT
+    local fontSize = db.fontSize or 11
 
     castFrame = CreateFrame("Frame", "BravUI_Cooldown_CastBar", UIParent)
     castFrame:SetPoint("TOP", anchor, "BOTTOM", 0, -4)
@@ -110,13 +111,40 @@ local function CreateCastBar(anchor)
     spellText:SetPoint("LEFT", castBar, "LEFT", 4, 0)
     spellText:SetJustifyH("LEFT")
     spellText:SetFontObject(GameFontNormal)
-    pcall(function() spellText:SetFont(fontPath, 11, "OUTLINE") end)
+    pcall(function() spellText:SetFont(fontPath, fontSize, "OUTLINE") end)
 
     timeText = castBar:CreateFontString(nil, "OVERLAY")
     timeText:SetPoint("RIGHT", castBar, "RIGHT", -4, 0)
     timeText:SetJustifyH("RIGHT")
     timeText:SetFontObject(GameFontNormal)
-    pcall(function() timeText:SetFont(fontPath, 11, "OUTLINE") end)
+    pcall(function() timeText:SetFont(fontPath, fontSize, "OUTLINE") end)
+
+    -- Apply text color
+    local tc = db.textColor
+    if tc then
+        spellText:SetTextColor(tc.r or 1, tc.g or 1, tc.b or 1, 1)
+        timeText:SetTextColor(tc.r or 1, tc.g or 1, tc.b or 1, 1)
+    end
+end
+
+-- ============================================================================
+-- BACKGROUND
+-- ============================================================================
+
+local function ApplyBackground()
+    local db = GetDB()
+    local frames = { castBar, iconFrame }
+    for _, frame in ipairs(frames) do
+        if frame and frame._bg then
+            if db.showBackground ~= false then
+                local bc = db.bgColor
+                frame._bg:SetVertexColor(bc and bc.r or 0, bc and bc.g or 0, bc and bc.b or 0, db.bgAlpha or 0.55)
+                frame._bg:Show()
+            else
+                frame._bg:Hide()
+            end
+        end
+    end
 end
 
 -- ============================================================================
@@ -153,6 +181,7 @@ local function Stop()
     castStart, castEnd = 0, 0
     updater:Hide()
     if not castFrame then return end
+    if previewMode then return end
     castBar:SetValue(0)
     spellText:SetText("")
     timeText:SetText("")
@@ -167,6 +196,7 @@ end
 
 local function StartOrRefresh()
     if not castFrame then return end
+    if previewMode then return end
 
     local db = GetDB()
     if db.enabled == false then
@@ -195,12 +225,18 @@ local function StartOrRefresh()
     castActive = true
     spellText:SetText(name or "")
 
-    if texture and texture ~= "" then
+    if db.showIcon ~= false and texture and texture ~= "" then
         iconTex:SetTexture(texture)
         iconFrame:Show()
+        castBar:ClearAllPoints()
+        castBar:SetPoint("LEFT", iconFrame, "RIGHT", ICON_PAD, 0)
+        castBar:SetPoint("RIGHT", castFrame, "RIGHT", 0, 0)
     else
         iconTex:SetTexture(nil)
         iconFrame:Hide()
+        castBar:ClearAllPoints()
+        castBar:SetPoint("LEFT", castFrame, "LEFT", 0, 0)
+        castBar:SetPoint("RIGHT", castFrame, "RIGHT", 0, 0)
     end
 
     castFrame:Show()
@@ -314,6 +350,21 @@ local function TryInit()
     CreateCastBar(utilityViewer)
     UpdatePosition()
 
+    -- Register in Move system
+    if BravUI.Mover and BravUI.Mover.Register and castFrame then
+        local def = BravLib.Storage.GetDefaults()
+        local defPos = def and def.positions and def.positions["Barre Incantation"]
+        local defXY = { x = defPos and defPos.x or 0, y = defPos and defPos.y or -260 }
+
+        BravUI.Mover:Register("Barre Incantation", castFrame, function()
+            local pdb = BravLib.Storage.GetDB()
+            if not pdb then return end
+            pdb.positions = pdb.positions or {}
+            pdb.positions["Barre Incantation"] = pdb.positions["Barre Incantation"] or {}
+            return pdb.positions["Barre Incantation"], "x", "y"
+        end, defXY, { category = "cooldown" })
+    end
+
     initialized = true
 end
 
@@ -422,6 +473,83 @@ function NS.ApplyCastBarLayout(layout)
 end
 
 -- ============================================================================
+-- PREVIEW MODE
+-- ============================================================================
+
+local previewMode = false
+local previewTicker = nil
+
+function NS.SetCastBarPreview(enabled)
+    if not castFrame then
+        if enabled then TryInit() end
+        if not castFrame then return end
+    end
+
+    previewMode = enabled
+
+    if enabled then
+        local db = GetDB()
+        local h = db.height or BAR_HEIGHT
+
+        -- Apply current settings
+        BravLib.Hooks.Fire("APPLY_COOLDOWN_CASTBAR")
+
+        -- Show with dummy data
+        castNotInterruptible = false
+        SetColors()
+
+        local dur = 2.0
+        castBar:SetMinMaxValues(0, dur)
+
+        if db.showIcon ~= false then
+            iconTex:SetTexture("Interface/Icons/Spell_Nature_Lightning")
+            iconFrame:Show()
+        end
+
+        if db.showSpellName ~= false then
+            spellText:SetText("Eclair")
+            spellText:Show()
+        end
+
+        castFrame:Show()
+        spark:Show()
+
+        -- Animate preview bar back and forth
+        local elapsed = 0
+        local direction = 1
+        if previewTicker then previewTicker:Cancel() end
+        previewTicker = C_Timer.NewTicker(0.016, function()
+            if not previewMode then return end
+            elapsed = elapsed + 0.016 * direction
+            if elapsed >= dur then elapsed = dur; direction = -1 end
+            if elapsed <= 0 then elapsed = 0; direction = 1 end
+
+            castBar:SetValue(elapsed)
+            local remain = dur - elapsed
+            if db.showTimer ~= false then
+                timeText:SetText(string.format("%.1f | %.1f", elapsed, dur))
+                timeText:Show()
+            end
+
+            local w = castBar:GetWidth() or 1
+            local pct = elapsed / dur
+            spark:ClearAllPoints()
+            spark:SetPoint("CENTER", castBar, "LEFT", w * pct, 0)
+        end)
+    else
+        if previewTicker then
+            previewTicker:Cancel()
+            previewTicker = nil
+        end
+        Stop()
+    end
+end
+
+function NS.IsCastBarPreview()
+    return previewMode
+end
+
+-- ============================================================================
 -- MODULE ENABLE / DISABLE
 -- ============================================================================
 
@@ -429,12 +557,75 @@ function CastBarMod:Enable()
     BravLib.Hooks.Register("APPLY_COOLDOWN_CASTBAR", function()
         if not castFrame then return end
         local db = GetDB()
+
+        -- Size
+        local h = db.height or BAR_HEIGHT
+        local w = db.width or CAST_BAR_WIDTH
+        castFrame:SetHeight(h)
+        castFrame:SetWidth(w)
+        if castBar then castBar:SetHeight(h) end
+        if iconFrame then
+            iconFrame:SetSize(h, h)
+            if db.showIcon == false then iconFrame:Hide() else iconFrame:Show() end
+        end
+        if spark then spark:SetSize(18, h * 1.6) end
+
+        -- Icon anchor
+        if castBar then
+            castBar:ClearAllPoints()
+            if db.showIcon == false then
+                castBar:SetPoint("LEFT", castFrame, "LEFT", 0, 0)
+            else
+                castBar:SetPoint("LEFT", iconFrame, "RIGHT", ICON_PAD, 0)
+            end
+            castBar:SetPoint("RIGHT", castFrame, "RIGHT", 0, 0)
+        end
+
+        -- Borders + background
         UpdateBorderColors()
+        ApplyBackground()
+
+        -- Text
         local fontPath = U.GetFont()
-        pcall(function() spellText:SetFont(fontPath, 11, "OUTLINE") end)
-        pcall(function() timeText:SetFont(fontPath, 11, "OUTLINE") end)
-        UpdatePosition()
-        StartOrRefresh()
+        local fontSize = db.fontSize or 11
+        pcall(function() spellText:SetFont(fontPath, fontSize, "OUTLINE") end)
+        pcall(function() timeText:SetFont(fontPath, fontSize, "OUTLINE") end)
+        local tc = db.textColor
+        if tc then
+            spellText:SetTextColor(tc.r or 1, tc.g or 1, tc.b or 1, 1)
+            timeText:SetTextColor(tc.r or 1, tc.g or 1, tc.b or 1, 1)
+        end
+
+        -- Visibility
+        if db.showSpellName == false then spellText:Hide() else spellText:Show() end
+        if db.showTimer == false then timeText:Hide() else timeText:Show() end
+
+        -- Apply position live from sliders
+        local posDB = BravLib.Storage.GetDB()
+        local pos = posDB and posDB.positions and posDB.positions["Barre Incantation"]
+        if pos then
+            castFrame:ClearAllPoints()
+            local fs = castFrame:GetScale() or 1
+            castFrame:SetPoint("CENTER", UIParent, "CENTER", (pos.x or 0) / fs, (pos.y or 0) / fs)
+        end
+
+        -- Re-apply preview dummy data if active
+        if previewMode then
+            castNotInterruptible = false
+            SetColors()
+            if db.showIcon ~= false then
+                iconTex:SetTexture("Interface/Icons/Spell_Nature_Lightning")
+                iconFrame:Show()
+            end
+            if db.showSpellName ~= false then
+                spellText:SetText("Eclair")
+                spellText:Show()
+            end
+            castFrame:Show()
+            spark:Show()
+        else
+            StartOrRefresh()
+        end
     end)
 end
 

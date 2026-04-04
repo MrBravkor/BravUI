@@ -1,171 +1,150 @@
 -- BravUI/Modules/Cooldown/ResourceBar.lua
 -- Barre de ressource primaire (mana/rage/energy/focus/fury...)
--- Ancrage au EssentialCooldownViewer natif de Blizzard
--- Portage v2 depuis BravUI_Cooldown standalone
+-- Position libre via Move system
 
 local NS = BravUI.Cooldown
 local U  = BravUI.Utils
 local TEX = NS.TEX or "Interface/Buttons/WHITE8x8"
 
--- ============================================================================
--- MODULE REGISTRATION
--- ============================================================================
-
 local ResourceBar = {}
 BravUI:RegisterModule("Cooldown.ResourceBar", ResourceBar)
-
--- ============================================================================
--- DB
--- ============================================================================
-
-local function GetDB()
-    local cd = BravLib.API.GetModule("cooldown")
-    if not cd then return {} end
-    return cd.primary or {}
-end
 
 -- ============================================================================
 -- LOCALS
 -- ============================================================================
 
-local bar, barText
-local viewer
+local bar, barText, barBg
 local initialized = false
 
+local function GetDB()
+    local cd = BravLib.API.GetModule("cooldown")
+    return cd and cd.primary or {}
+end
+
 -- ============================================================================
--- CREATION
+-- BORDER (black 1px)
 -- ============================================================================
 
-local function CreateResourceBar(anchor)
+local function CreateBlackBorder(frame)
+    local top = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+    top:SetTexture(TEX); top:SetVertexColor(0, 0, 0, 1); top:SetHeight(1)
+    top:SetPoint("TOPLEFT", frame, "TOPLEFT", -1, 1)
+    top:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 1, 1)
+
+    local bot = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+    bot:SetTexture(TEX); bot:SetVertexColor(0, 0, 0, 1); bot:SetHeight(1)
+    bot:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", -1, -1)
+    bot:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 1, -1)
+
+    local left = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+    left:SetTexture(TEX); left:SetVertexColor(0, 0, 0, 1); left:SetWidth(1)
+    left:SetPoint("TOPLEFT", frame, "TOPLEFT", -1, 1)
+    left:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", -1, -1)
+
+    local right = frame:CreateTexture(nil, "OVERLAY", nil, 7)
+    right:SetTexture(TEX); right:SetVertexColor(0, 0, 0, 1); right:SetWidth(1)
+    right:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 1, 1)
+    right:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 1, -1)
+end
+
+-- ============================================================================
+-- CREATE
+-- ============================================================================
+
+local function Create()
     if bar then return end
 
     local db = GetDB()
-    local fontPath = U.GetFont()
-    local width  = db.width  or 220
-    local height = db.height or 12
-    local offX = db.anchorOffsetX or 0
-    local offY = db.anchorOffsetY or -2
 
     local f = CreateFrame("StatusBar", "BravUI_ResourceBar", UIParent)
-    f:SetPoint("TOP", anchor, "BOTTOM", offX, offY)
-    f:SetSize(width, height)
     f:SetStatusBarTexture(TEX)
     f:SetMinMaxValues(0, 1)
+    f:SetSize(db.width or 220, db.height or 12)
     f:SetFrameStrata("HIGH")
     f:SetFrameLevel(50)
     f:EnableMouse(false)
-    NS.CreateClassBorder(f)
-    NS.CreateBarBackground(f)
+
+    local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8)
+    bg:SetTexture(TEX)
+    bg:SetVertexColor(0, 0, 0, db.bgAlpha or 0.55)
+    bg:SetAllPoints(f)
+    barBg = bg
+
+    CreateBlackBorder(f)
 
     local txt = f:CreateFontString(nil, "OVERLAY")
     txt:SetPoint("CENTER", f, "CENTER")
     txt:SetFontObject(GameFontNormal)
-    pcall(function() txt:SetFont(fontPath, db.fontSize or 11, "OUTLINE") end)
+    pcall(function() txt:SetFont(U.GetFont(), db.fontSize or 11, "OUTLINE") end)
     txt:SetShadowOffset(1, -1)
     txt:SetShadowColor(0, 0, 0, 0.8)
     txt:SetTextColor(1, 1, 1, 1)
 
     f:Show()
-
     bar = f
     barText = txt
 end
 
 -- ============================================================================
--- POSITION
+-- APPLY SIZE (from DB)
 -- ============================================================================
 
-local function UpdatePosition()
-    if not bar or not viewer then return end
-
+local function ApplySize()
+    if not bar then return end
     local db = GetDB()
-    local offX = db.anchorOffsetX or 0
-    local offY = db.anchorOffsetY or -2
-
-    if db.anchorToViewer ~= false then
-        local cx, _, bottomY = NS.GetViewerIconBounds(viewer)
-        bar:ClearAllPoints()
-        if cx and bottomY then
-            bar:SetPoint("TOP", UIParent, "BOTTOMLEFT", cx + offX, bottomY + offY)
-        else
-            bar:SetPoint("TOP", viewer, "BOTTOM", offX, offY)
-        end
-    end
-
-    if db.flexibleWidth and db.anchorToViewer ~= false then
-        local vw = viewer:GetWidth()
-        if vw and vw > 0 then
-            bar:SetWidth(vw)
-        end
-    else
-        bar:SetWidth(db.width or 220)
-    end
+    bar:SetSize(db.width or 220, db.height or 12)
 end
 
 -- ============================================================================
--- UPDATE
+-- UPDATE (secret-safe)
 -- ============================================================================
 
 local function Update()
     if not bar or not barText then return end
 
     local db = GetDB()
-    if db.enabled == false then
-        bar:Hide()
-        return
-    end
+    if db.enabled == false then bar:Hide() return end
 
     local ok = pcall(function()
         local curP = UnitPower("player")
         local maxP = UnitPowerMax("player")
 
-        if not maxP or maxP <= 0 then
-            bar:Hide()
-            return
-        end
-
-        bar:Show()
         bar:SetMinMaxValues(0, maxP)
         bar:SetValue(curP)
 
-        -- Texte
-        local curStr = NS.Abbrev(curP)
-        local maxStr = NS.Abbrev(maxP)
-        barText:SetText(curStr .. " / " .. maxStr)
-        barText:Show()
+        if db.showText ~= false then
+            local fmt = db.textFormat or "value_only"
+            if fmt == "value" then
+                barText:SetText(AbbreviateNumbers(curP) .. " / " .. AbbreviateNumbers(maxP))
+            else
+                barText:SetText(AbbreviateNumbers(curP))
+            end
+            barText:Show()
+        else
+            barText:Hide()
+        end
 
-        -- Couleur
-        if db.useClassColor then
-            local cr, cg, cb = U.GetClassColor("player")
-            bar:SetStatusBarColor(cr, cg, cb, 0.85)
-        elseif db.usePowerColor ~= false then
+        local mode = db.colorMode or "power"
+        if mode == "power" then
             local _, pToken = UnitPowerType("player")
             local c = PowerBarColor and pToken and PowerBarColor[pToken]
             if c and c.r then
-                bar:SetStatusBarColor(c.r, c.g, c.b, 0.85)
-            elseif db.barColor then
-                bar:SetStatusBarColor(db.barColor.r or 0, db.barColor.g or 0.44, db.barColor.b or 0.87, 0.85)
+                bar:SetStatusBarColor(c.r, c.g, c.b, 1)
             else
-                bar:SetStatusBarColor(0, 0.44, 0.87, 0.85)
+                bar:SetStatusBarColor(0, 0.44, 0.87, 1)
             end
-        elseif db.barColor then
-            bar:SetStatusBarColor(db.barColor.r or 0, db.barColor.g or 0.44, db.barColor.b or 0.87, 0.85)
+        elseif mode == "class" then
+            local cr, cg, cb = U.GetClassColor("player")
+            bar:SetStatusBarColor(cr, cg, cb, 1)
         else
-            bar:SetStatusBarColor(0, 0.44, 0.87, 0.85)
+            local bc = db.barColor
+            bar:SetStatusBarColor(bc and bc.r or 0, bc and bc.g or 0.44, bc and bc.b or 0.87, 1)
         end
+
+        bar:Show()
     end)
 
-    if not ok then
-        bar:Hide()
-    end
-end
-
-local function UpdateBorderColors()
-    if not bar or not bar._borders then return end
-    local r, g, b = NS.GetBorderColor()
-    for _, tex in pairs(bar._borders) do
-        tex:SetVertexColor(r, g, b, 1)
-    end
+    if not ok then bar:Hide() end
 end
 
 -- ============================================================================
@@ -173,17 +152,28 @@ end
 -- ============================================================================
 
 local function TryInit()
-    if initialized then return end
-    if NS._cdmOff then return end
+    if initialized or NS._cdmOff then return end
 
     local db = GetDB()
     if db.enabled == false then return end
 
-    viewer = _G["EssentialCooldownViewer"]
-    if not viewer then return end
-
-    CreateResourceBar(viewer)
+    Create()
     Update()
+
+    -- Register in Move system (position handled entirely by Move)
+    if BravUI.Mover and BravUI.Mover.Register and bar then
+        local def = BravLib.Storage.GetDefaults()
+        local defPos = def and def.positions and def.positions["Barre Ressource"]
+        local defXY = { x = defPos and defPos.x or 0, y = defPos and defPos.y or -232 }
+
+        BravUI.Mover:Register("Barre Ressource", bar, function()
+            local pdb = BravLib.Storage.GetDB()
+            if not pdb then return end
+            pdb.positions = pdb.positions or {}
+            pdb.positions["Barre Ressource"] = pdb.positions["Barre Ressource"] or {}
+            return pdb.positions["Barre Ressource"], "x", "y"
+        end, defXY, { category = "cooldown" })
+    end
 
     initialized = true
 end
@@ -194,41 +184,32 @@ end
 
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN")
-
 ev:SetScript("OnEvent", function(self, event, arg1)
     if event == "PLAYER_LOGIN" then
-        self:RegisterEvent("PLAYER_ENTERING_WORLD")
         self:RegisterEvent("UNIT_POWER_FREQUENT")
         self:RegisterEvent("UNIT_MAXPOWER")
         self:RegisterEvent("UNIT_DISPLAYPOWER")
-        self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+        self:RegisterEvent("PLAYER_ENTERING_WORLD")
 
         C_Timer.After(0.5, TryInit)
         C_Timer.After(1.5, function()
             TryInit()
-            UpdatePosition()
             Update()
         end)
         return
     end
 
     if event == "PLAYER_ENTERING_WORLD" then
-        C_Timer.After(0.5, TryInit)
-        C_Timer.After(1.5, function()
+        C_Timer.After(0.5, function()
             TryInit()
-            UpdatePosition()
             Update()
         end)
         return
     end
 
-    if event == "PLAYER_SPECIALIZATION_CHANGED" or event == "UNIT_DISPLAYPOWER" then
-        if event == "UNIT_DISPLAYPOWER" and arg1 ~= "player" then return end
-        C_Timer.After(0.3, function()
-            UpdateBorderColors()
-            UpdatePosition()
-            Update()
-        end)
+    if event == "UNIT_DISPLAYPOWER" then
+        if arg1 ~= "player" then return end
+        C_Timer.After(0.1, Update)
         return
     end
 
@@ -239,21 +220,16 @@ ev:SetScript("OnEvent", function(self, event, arg1)
 end)
 
 -- ============================================================================
--- APPLY LAYOUT (appele depuis Init.lua NS.ApplySpecLayout)
+-- PUBLIC API
 -- ============================================================================
 
-function NS.ApplyResourceBarLayout(layout)
+function NS.ApplyResourceBarLayout()
     if not bar then return end
-
-    if layout and layout.enabled == false then
-        bar:Hide()
-        return
-    end
-
-    bar:SetHeight((layout and layout.height) or 12)
-    UpdatePosition()
-    bar:Show()
+    local db = GetDB()
+    if db.enabled == false then bar:Hide() return end
+    ApplySize()
     Update()
+    bar:Show()
 end
 
 -- ============================================================================
@@ -264,11 +240,32 @@ function ResourceBar:Enable()
     BravLib.Hooks.Register("APPLY_COOLDOWN_RESOURCE", function()
         if not bar then return end
         local db = GetDB()
-        UpdateBorderColors()
-        pcall(function()
-            barText:SetFont(U.GetFont(), db.fontSize or 11, "OUTLINE")
-        end)
-        UpdatePosition()
+        pcall(function() barText:SetFont(U.GetFont(), db.fontSize or 11, "OUTLINE") end)
+        local anchor = db.textAnchor or "CENTER"
+        barText:ClearAllPoints()
+        barText:SetPoint(anchor, bar, anchor, 0, 0)
+        local tc = db.centerTextColor
+        barText:SetTextColor(tc and tc.r or 1, tc and tc.g or 1, tc and tc.b or 1, 1)
+        if barBg then
+            if db.showBackground ~= false then
+                barBg:Show()
+                local bc = db.bgColor
+                barBg:SetVertexColor(bc and bc.r or 0, bc and bc.g or 0, bc and bc.b or 0, db.bgAlpha or 0.55)
+            else
+                barBg:Hide()
+            end
+        end
+        ApplySize()
+
+        -- Apply position live from sliders
+        local posDB = BravLib.Storage.GetDB()
+        local pos = posDB and posDB.positions and posDB.positions["Barre Ressource"]
+        if pos then
+            bar:ClearAllPoints()
+            local fs = bar:GetScale() or 1
+            bar:SetPoint("CENTER", UIParent, "CENTER", (pos.x or 0) / fs, (pos.y or 0) / fs)
+        end
+
         Update()
     end)
 end

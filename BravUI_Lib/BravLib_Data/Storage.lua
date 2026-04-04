@@ -543,7 +543,7 @@ end
 -- ============================================================================
 
 local EXPORT_PREFIX = "BravUI"
-local EXPORT_VERSION = 1
+local EXPORT_VERSION = 2
 
 function Storage.ExportProfile(name)
     name = name or ResolveActiveProfileName()
@@ -555,9 +555,10 @@ function Storage.ExportProfile(name)
     end
 
     local data = BravLib.CopyTable(db.profiles[name])
-    local serialized = BravLib.Serialize(data)
-    local compressed = BravLib.Compress(serialized)
-    local encoded = BravLib.Base64Encode(compressed)
+    local diff = BravLib.DiffTable(data, defaults)
+    if not diff then diff = {} end
+    local serialized = BravLib.Serialize(diff)
+    local encoded = BravLib.Base64Encode(serialized)
     return EXPORT_PREFIX .. ":" .. EXPORT_VERSION .. ":" .. encoded
 end
 
@@ -590,21 +591,15 @@ function Storage.ImportProfile(name, importString)
         return false, "invalid base64"
     end
 
-    local decompressed = BravLib.Decompress(decoded)
-    if not decompressed then
-        BravLib.Warn("Storage: invalid import data (decompress)")
-        return false, "invalid compressed data"
-    end
-
-    local ok, data = pcall(BravLib.Deserialize, decompressed)
+    local ok, data = pcall(BravLib.Deserialize, decoded)
     if not ok or type(data) ~= "table" then
         BravLib.Warn("Storage: invalid import data (deserialize)")
         return false, "invalid data"
     end
 
-    -- merger avec les defaults pour s'assurer que toutes les cles existent
+    -- reconstruire le profil : defaults + diff applique par dessus
     local profileData = BravLib.CopyTable(defaults)
-    BravLib.TableMerge(profileData, data)
+    BravLib.DeepApply(profileData, data)
 
     if ProfileExists(name) then
         wipe(db.profiles[name])

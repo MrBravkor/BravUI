@@ -1171,10 +1171,41 @@ function BUILDERS.input(parent, spec, refreshFn)
   label:SetText(spec.label or "")
   label:SetTextColor(unpack(T.TEXT))
 
+  local cr, cg, cb = M:GetClassColor()
+  local BTN_W = 55
+  local BTN_GAP = 2
+
+  -- Bouton Reset (à droite)
+  local resetBtn = CreateFrame("Button", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
+  resetBtn:SetSize(BTN_W, 24)
+  resetBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, -20)
+  resetBtn:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+  resetBtn:SetBackdropColor(0.15, 0.15, 0.15, 0.90)
+  resetBtn:SetBackdropBorderColor(unpack(T.BORDER))
+  local resetLbl = resetBtn:CreateFontString(nil, "OVERLAY")
+  M:SafeFont(resetLbl, 9, "OUTLINE")
+  resetLbl:SetPoint("CENTER")
+  resetLbl:SetText("Reset")
+  resetLbl:SetTextColor(unpack(T.TEXT))
+
+  -- Bouton OK (à gauche du Reset)
+  local okBtn = CreateFrame("Button", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
+  okBtn:SetSize(BTN_W, 24)
+  okBtn:SetPoint("RIGHT", resetBtn, "LEFT", -BTN_GAP, 0)
+  okBtn:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
+  okBtn:SetBackdropColor(cr * 0.15, cg * 0.15, cb * 0.15, 0.90)
+  okBtn:SetBackdropBorderColor(cr, cg, cb, 0.60)
+  local okLbl = okBtn:CreateFontString(nil, "OVERLAY")
+  M:SafeFont(okLbl, 9, "OUTLINE")
+  okLbl:SetPoint("CENTER")
+  okLbl:SetText("Valider")
+  okLbl:SetTextColor(cr, cg, cb, 1)
+
+  -- EditBox (prend le reste de la largeur)
   local box = CreateFrame("EditBox", nil, f, BackdropTemplateMixin and "BackdropTemplate" or nil)
   box:SetHeight(24)
   box:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -20)
-  box:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+  box:SetPoint("RIGHT", okBtn, "LEFT", -BTN_GAP, 0)
   box:SetBackdrop({ bgFile = T.TEX, edgeFile = T.TEX, edgeSize = 1 })
   box:SetBackdropColor(0.04, 0.04, 0.06, 0.80)
   box:SetBackdropBorderColor(unpack(T.BORDER))
@@ -1202,6 +1233,37 @@ function BUILDERS.input(parent, spec, refreshFn)
   box:SetScript("OnEscapePressed", function(self)
     UpdateVisual()
     self:ClearFocus()
+  end)
+
+  okBtn:SetScript("OnClick", Commit)
+  okBtn:SetScript("OnEnter", function(self)
+    self:SetBackdropBorderColor(cr, cg, cb, 1)
+  end)
+  okBtn:SetScript("OnLeave", function(self)
+    self:SetBackdropBorderColor(cr, cg, cb, 0.60)
+  end)
+
+  resetBtn:SetScript("OnClick", function()
+    if spec.db then
+      local parts = SplitPath(spec.db)
+      local def = BravLib.Storage.GetDefaults()
+      local val = def
+      for i = 1, #parts do
+        if type(val) ~= "table" then val = nil; break end
+        val = val[parts[i]]
+      end
+      if val ~= nil then
+        SpecSet(spec, val)
+      end
+    end
+    UpdateVisual()
+    if refreshFn then refreshFn() end
+  end)
+  resetBtn:SetScript("OnEnter", function(self)
+    self:SetBackdropBorderColor(0.50, 0.50, 0.50, 1)
+  end)
+  resetBtn:SetScript("OnLeave", function(self)
+    self:SetBackdropBorderColor(unpack(T.BORDER))
   end)
 
   UpdateVisual()
@@ -1332,7 +1394,9 @@ function BUILDERS.button_select(parent, spec, refreshFn)
   label:SetTextColor(unpack(T.TEXT))
 
   local items = spec.values or {}
-  local BTN_H = 24
+  local hasSubtext = false
+  for _, e in ipairs(items) do if e.subtext then hasSubtext = true; break end end
+  local BTN_H = hasSubtext and 38 or 24
   local BTN_GAP = 2
   local BTN_TOP = 22
   local btns = {}
@@ -1344,10 +1408,12 @@ function BUILDERS.button_select(parent, spec, refreshFn)
         b._bd:SetBackdropColor(cr, cg, cb, 0.90)
         b._bd:SetBackdropBorderColor(cr, cg, cb, 0.60)
         b._label:SetTextColor(1, 1, 1, 1)
+        if b._sub then b._sub:SetTextColor(0.85, 0.85, 0.85, 1) end
       else
         b._bd:SetBackdropColor(unpack(T.PANEL))
         b._bd:SetBackdropBorderColor(unpack(T.BORDER))
         b._label:SetTextColor(unpack(T.TEXT))
+        if b._sub then b._sub:SetTextColor(0.50, 0.50, 0.50, 1) end
       end
     end
   end
@@ -1363,24 +1429,44 @@ function BUILDERS.button_select(parent, spec, refreshFn)
 
     local lbl = bd:CreateFontString(nil, "OVERLAY")
     M:SafeFont(lbl, 10, "OUTLINE")
-    lbl:SetPoint("CENTER", 0, 0)
+    if hasSubtext then
+      lbl:SetPoint("CENTER", 0, 6)
+    else
+      lbl:SetPoint("CENTER", 0, 0)
+    end
     lbl:SetText(entry.text or "")
     btn._label = lbl
 
+    if entry.subtext then
+      local sub = bd:CreateFontString(nil, "OVERLAY")
+      M:SafeFont(sub, 8, "OUTLINE")
+      sub:SetPoint("CENTER", 0, -7)
+      sub:SetText(entry.subtext)
+      sub:SetTextColor(0.50, 0.50, 0.50, 1)
+      btn._sub = sub
+    end
+
     local value = entry.value
+    local isDisabled = entry.disabled
 
     btn:SetScript("OnClick", function()
+      if isDisabled then return end
       SpecSet(spec, value)
       UpdateVisual()
       if refreshFn then refreshFn() end
     end)
 
     btn:SetScript("OnEnter", function()
+      if isDisabled then return end
       if SpecGet(spec) ~= value then
         bd:SetBackdropBorderColor(0.35, 0.35, 0.40, 1)
       end
     end)
     btn:SetScript("OnLeave", function() UpdateVisual() end)
+
+    if isDisabled then
+      lbl:SetTextColor(0.4, 0.4, 0.4, 1)
+    end
 
     btns[i] = btn
   end
@@ -1400,7 +1486,9 @@ function BUILDERS.button_select(parent, spec, refreshFn)
   LayoutButtons()
   UpdateVisual()
 
-  return { frame = f, height = 48, refresh = UpdateVisual }
+  local totalH = BTN_TOP + BTN_H + 4
+  f:SetHeight(totalH)
+  return { frame = f, height = totalH, refresh = UpdateVisual }
 end
 
 -- ANCHOR GRID (3x3)

@@ -1,7 +1,7 @@
 ---@class BravUI
 BravUI = BravUI or {}
 
-BravUI.version = "2.0.8-alpha"
+BravUI.version = "2.0.9-alpha"
 BravUI.modules = {}
 
 local defaults = {
@@ -36,7 +36,9 @@ local defaults = {
         ["Barre Rep"]    = { x = 0,    y = -25 },
         ["Barre Honneur"] = { x = 0,   y = -50 },
         ["Barre Ressource"] = { x = 0, y = -232 },
+        ["Puissance Classe"] = { x = 0, y = -200 },
         ["Queue Eye"]       = { x = 0, y = -100 },
+        ["Barre Incantation"] = { x = 0, y = -260 },
         ["CDM Essentiels"]  = { x = 0, y = 0 },
         ["CDM Utilitaires"] = { x = 0, y = 0 },
         ["CDM Buffs Icone"] = { x = 0, y = 0 },
@@ -77,6 +79,7 @@ local defaults = {
         guildTextColor   = { r = 1, g = 1, b = 1 },
     },
     unitframes = {
+        roleIconStyle = "bravui", -- "blizzard", "bravui", "ffxiv"
         player = {
             enabled        = true,
             scale          = 1,
@@ -505,19 +508,31 @@ local defaults = {
         barHeight      = 16,
         barSpacing     = 1,
         fontSize       = 9,
+        fontSizeValues = 9,
         showRank       = true,
+        rankSeparator  = ".",
+        showSpecIcon   = true,
         showPercent    = true,
         classColors    = true,
+        barColorMode   = "class",      -- "class" ou "custom"
+        barCustomColor = { r = 1.0, g = 1.0, b = 1.0 },
         maxBars        = 50,
         layout         = 2,
         panelWidth     = 440,
         panelHeight    = 223,
         opacity        = 0.75,
+        showBackground = true,
+        headerOpacity  = 0.4,
+        footerOpacity  = 0.75,
         tabHeight      = 15,
         windowOpacity  = 0.8,
         timerEnabled   = true,
         summaryEnabled = true,
         timerScale     = 1.0,
+        barTextMode    = 1,         -- 1 = DPS/s (Total | %), 2 = Total (DPS/s | %), 3 = Custom
+        barTextCustom  = "dps (total | %)", -- format libre, tags : dps total % (insensible à la casse)
+        classIconStyle = "blizzard", -- "blizzard", "flat", "flatborder2", "round", "square", "warcraftflat"
+        segmentMeta    = {},        -- {[segName] = {instanceType, difficultyName, isInstance}}
     },
     afk = {
         enabled = true,
@@ -660,8 +675,7 @@ local defaults = {
         -- Cooldown Manager (Blizzard CooldownViewer restyle)
         cdm = {
             enabled        = true,
-            iconSize       = 36,
-            iconSpacing    = 2,
+            -- Skin global
             iconBorder     = true,
             iconBorderSize = 1,
             iconBorderColor = { r = 0, g = 0, b = 0, a = 1 },
@@ -670,13 +684,50 @@ local defaults = {
             stackFontSize  = 10,
             stackFontOutline = "OUTLINE",
             swipeR = 0, swipeG = 0, swipeB = 0, swipeA = 0.7,
-            smartVisibility = true,
-            opacity = {
-                Essential = 1.0,
-                Utility   = 1.0,
-                BuffIcon  = 1.0,
-                BuffBar   = 1.0,
-                Custom    = 1.0,
+            -- Per-viewer settings
+            essential = {
+                orientation  = "HORIZONTAL",
+                maxColumns   = 5,
+                iconDirection = "RIGHT",
+                iconSize     = 36,
+                iconSpacing  = 6,
+                opacity      = 1.0,
+                visibility   = "ALWAYS",
+                showTimer    = true,
+                showTooltips = true,
+            },
+            utility = {
+                orientation  = "HORIZONTAL",
+                maxColumns   = 5,
+                iconDirection = "RIGHT",
+                iconSize     = 36,
+                iconSpacing  = 6,
+                opacity      = 1.0,
+                visibility   = "ALWAYS",
+                showTimer    = true,
+                showTooltips = true,
+            },
+            buffIcon = {
+                orientation  = "HORIZONTAL",
+                maxColumns   = 5,
+                iconDirection = "RIGHT",
+                iconSize     = 36,
+                iconSpacing  = 6,
+                opacity      = 1.0,
+                visibility   = "ALWAYS",
+                showTimer    = true,
+                showTooltips = true,
+            },
+            buffBar = {
+                orientation  = "HORIZONTAL",
+                maxColumns   = 1,
+                iconDirection = "RIGHT",
+                iconSize     = 36,
+                iconSpacing  = 6,
+                opacity      = 1.0,
+                visibility   = "ALWAYS",
+                showTimer    = true,
+                showTooltips = true,
             },
         },
 
@@ -693,17 +744,17 @@ local defaults = {
             textFormat      = "value",
             fontSize        = 11,
             alpha           = 1.0,
+            showBackground  = true,
             bgAlpha         = 0.55,
-            showBorder      = true,
+            bgColor         = { r = 0, g = 0, b = 0 },
             -- Ancrage au viewer CDM
-            anchorToViewer  = true,
+            anchorToViewer  = false,
             anchorPoint     = "TOP",
             anchorOffsetX   = 0,
             anchorOffsetY   = -2,
-            flexibleWidth   = true,
             -- Couleur
-            useClassColor   = false,
-            usePowerColor   = true,
+            textAnchor      = "CENTER",
+            colorMode       = "power",
             barColor        = { r = 0, g = 0.44, b = 0.87 },
             centerTextColor = { r = 1, g = 1, b = 1 },
         },
@@ -721,21 +772,33 @@ local defaults = {
             borderSize   = 1,
             borderColor  = { r = 0, g = 0, b = 0, a = 1 },
             usePowerColor = true,
+            colorMode       = "power",
+            barColor        = { r = 0.7, g = 0.7, b = 0.7 },
+            showBackground  = true,
+            bgAlpha         = 0.55,
+            bgColor         = { r = 0, g = 0, b = 0 },
             alpha        = 1.0,
         },
 
         -- Cast Bar
         castbar = {
             enabled        = true,
+            width          = 250,
             height         = 12,
+            showIcon       = true,
             texture        = "Interface\\Buttons\\WHITE8X8",
             border         = true,
             borderSize     = 1,
             borderColor    = { r = 0, g = 0, b = 0, a = 1 },
             showSpellName  = true,
             showTimer      = true,
+            fontSize       = 11,
+            textColor      = { r = 1, g = 1, b = 1 },
             colorNormal    = { r = 1,   g = 0.82, b = 0 },
             colorInterrupt = { r = 1,   g = 0.3,  b = 0.3 },
+            showBackground = true,
+            bgAlpha        = 0.55,
+            bgColor        = { r = 0, g = 0, b = 0 },
             alpha          = 1.0,
         },
 
@@ -757,7 +820,21 @@ end
 
 local function OnPlayerLogin()
     if BravLib.API.Get("general", "welcomeMessage") then
-        BravLib.Print("v" .. BravUI.version .. " loaded. Type |cFF00FFFF/brav|r to open settings.")
+        C_Timer.After(1, function()
+            local cyan = "|cFF00FFFF"
+            local white = "|cFFFFFFFF"
+            local dim = "|cFF888888"
+            local r = "|r"
+            local vColor
+            local v = BravUI.version or ""
+            if v:find("alpha") or v:find("beta") then
+                vColor = "|cFFFF8800"
+            else
+                vColor = "|cFF00FF00"
+            end
+            print(white .. "Brav" .. r .. cyan .. "UI" .. r .. " " .. white .. "-" .. r .. " " .. vColor .. v .. r .. " " .. white .. "chargé !" .. r)
+            print(cyan .. "/brav" .. r .. " " .. dim .. "options" .. r .. " " .. white .. "-" .. r .. " " .. cyan .. "/bravmove" .. r .. " " .. dim .. "déplacer" .. r .. " " .. white .. "-" .. r .. " " .. cyan .. "/bd" .. r .. " " .. dim .. "meter" .. r)
+        end)
     end
     BravLib.Event.Unregister("PLAYER_LOGIN", OnPlayerLogin)
 end

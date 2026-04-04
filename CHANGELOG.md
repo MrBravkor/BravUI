@@ -2,6 +2,87 @@
 
 ---
 
+## [2.0.9-alpha] — 04/04/2026
+
+Meter v2 enrichi : opacité par zone, segment menu intelligent, panel de partage, tracking instance, protection secret strings.
+
+### Meter — Opacité panneau
+
+- Split du fond en 3 textures indépendantes : onglets (`_tabBg`), contenu (`_bg`), barre d'info (footer)
+- Toggle afficher/masquer le fond + 3 sliders opacité (onglets / barres / barre d'info)
+- Aperçu fixe et animé depuis le menu
+
+### Meter — Segment menu
+
+- Menu déroulant au-dessus du panel, liste plate chronologique
+- Détection automatique : boss (rouge), donjon M+ (doré), trash d'instance (gris), monde ouvert (gris clair)
+- Marqueur actif "N" via `Font_Icons.ttf`, Overall / En cours en bas
+- Filtrage des doublons Overall retournés par l'API
+
+### Meter — Segment metadata
+
+- Tracking instance/world à chaque début de combat (`PLAYER_REGEN_DISABLED`, `ENCOUNTER_START`)
+- Stockage dans `db.segmentMeta` : isInstance, instanceType, instanceName, difficultyName, difficultyID
+- Distinction automatique trash d'instance vs mobs monde ouvert (épouvantail, etc.)
+- Reset nettoie les métadonnées
+
+### Meter — Panel de partage
+
+- Panel centré avec dropdown canal (Dire, Groupe, Raid, Guilde, Instance)
+- Slider draggable nombre d'entrées (1–25) avec barre de progression couleur de classe
+- Format disposition 1 : `DPS/s (Total / %)` avec durée du combat dans le header
+- `SafeChat()` pour nettoyer les escape codes WoW avant envoi
+- Noms sans suffixe serveur, croix de fermeture
+
+### Meter — Tooltip BravUI
+
+- Bulle d'aide custom sur les boutons tab (segments, partager, reset)
+- Fond noir (0.9 alpha), bordure 2px couleur de classe, police Russo_One
+- Couleur de classe liée au réglage général `useClassColor`
+
+### Page Menu Info
+
+- Nouvelle page (ordre 97) : versions addons, commandes slash, auteur, testeurs, guilde
+
+### Page Menu Cooldown
+
+- Réécriture complète avec onglets + sous-onglets (7 onglets)
+- ResourceBar, ClassPower, CastBar : position libre, colorMode 3 modes, fond/texte configurables
+- CastBar preview mode, Move system pour ResourceBar/ClassPower/CastBar
+
+### Page Menu Meter
+
+- Réécriture complète avec API réelle, format texte barres (3 modes + custom libre)
+- Toggle icône spé + rang, couleur barres (classe/custom), séparateur rang
+- Icônes de classe custom (5 styles), taille police séparée rang/valeurs
+
+### UnitFrames — Icônes de rôle
+
+- 3 styles (Blizzard, BravUI, FFXIV), dropdown menu, refresh dynamique via `APPLY_UNIT`
+
+### BravLib
+
+- `DiffTable` (diff récursif), `DeepApply` (merge profond avec écrasement)
+- Export profils diff defaults (réduction ~91%)
+
+### Suppressions
+
+- LZW Compress/Decompress — incompatible copier-coller
+- Meter slider barres maximum — retiré du menu
+
+### Corrections
+
+- **Secret strings** — pcall sur noms joueurs, formatage texte barres sans `table.concat`
+- **SendChatMessage** — `SafeChat()` retire les escape codes WoW
+- **AFK** — fix taint `UnitIsAFK` secret boolean (WoW 12.x)
+- **Chat whisper tabs** — fix taint `ChatHistory_GetToken`
+- **Keybind CDM** — fix `GetBindingForCmd()` WoW 12.x
+- **Skin CDM** — layout tous viewers, lignes centrées, filtre enfants, resize, espacement
+- **Import profils** — `DeepApply` au lieu de `TableMerge`
+- **Panel opacité** — `RefreshPanel()` dans `Panel.Setup()` pour ancrer les textures
+
+---
+
 ## [2.0.8-alpha] — 02/04/2026
 
 Modules AFK, DataBars, Cursor, Cooldown, CombatLog — portage v2 complet. Fix taint chat, secrets raid TWW, fond configurable.
