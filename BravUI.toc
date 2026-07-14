@@ -1,0 +1,26 @@
+## Interface: 120007
+## Title: |cff00ccffBravUI|r
+## Version: 1.0.0
+## Author: MrBravkor
+## Notes: Interface modulaire et légère — aucune dépendance externe.
+## Category: Interface
+## SavedVariables: BravUIDB
+## X-License: GPL-3.0
+## X-Website: https://github.com/MrBravkor/BravUI
+## X-Curse-Project-ID:
+## X-Wago-ID:
+
+Core\Init.lua
+
+# ------------------------------------------------------------------------------
+#  Localisations
+# ------------------------------------------------------------------------------
+Locales\enUS.lua
+Locales\frFR.lua
+
+# ------------------------------------------------------------------------------
+#  Cœur — utilitaires et fondations 
+# ------------------------------------------------------------------------------
+Core\Utils.lua
+Core\EventBus.lua
+Core\Config.lua
