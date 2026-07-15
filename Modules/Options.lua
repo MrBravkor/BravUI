@@ -452,9 +452,10 @@ function Options:Build()
             sepLine:SetHeight(1)
 
             -- 2e niveau : sous-onglets de réglage ciblé + zone de contenu.
-            -- « Classe » seulement si l'unité a une ressource de classe (joueur).
+            -- « Classe » seulement si l'unité a RÉELLEMENT une ressource de classe (joueur
+            -- d'une classe gérée) : pas d'onglet inerte pour guerrier, chasseur, etc.
             local SUB_TABS = { "Position", "Vie", "Ressource" }
-            if db().classpower then SUB_TABS[#SUB_TABS + 1] = "Classe" end
+            if db().classpower and UF():HasClassPower(unit) then SUB_TABS[#SUB_TABS + 1] = "Classe" end
             SUB_TABS[#SUB_TABS + 1] = "Incantation"
             local subBar = CreateFrame("Frame", nil, sp)
             subBar:SetPoint("TOPLEFT", 0, -49); subBar:SetPoint("TOPRIGHT", 0, -49)

@@ -718,17 +718,37 @@ end
 --------------------------------------------------------------------------------
 local PT = Enum and Enum.PowerType
 
+-- Nombre de runes PRÊTES (DK). `UnitPower(Runes)` renvoie un total constant (6), donc
+-- inutilisable pour le compte : on lit chaque rune via GetRuneCooldown. Valeurs du joueur
+-- (start / duration / GetTime) -> jamais secrètes, comparaison autorisée.
+local function ReadyRuneCount()
+    local ready = 0
+    for i = 1, 6 do
+        local start, duration, runeReady = GetRuneCooldown(i)
+        if runeReady or (start and duration and (start + duration) <= GetTime()) then
+            ready = ready + 1
+        end
+    end
+    return ready
+end
+
 -- Type de ressource + couleur par classe. La VISIBILITÉ se décide sur la lisibilité
--- de UnitPowerMax (> 0) : gère seule les spés sans ressource (mage Feu, moine MW…).
--- Druide (points de combo en forme féline) et Chevalier de la mort (runes =
--- cooldown, pas des pips) sont traités dans une itération ultérieure.
+-- de UnitPowerMax (> 0) : gère seule les spés/formes sans ressource (mage Feu, moine MW,
+-- druide hors forme féline…). `events` = événements broadcast supplémentaires propres à
+-- la classe (changement de forme pour le druide, mise à jour des runes pour le DK).
 local CLASS_POWER = PT and {
-    ROGUE   = { power = PT.ComboPoints,   color = { 0.90, 0.22, 0.30 } },
-    PALADIN = { power = PT.HolyPower,      color = { 0.95, 0.90, 0.55 } },
-    WARLOCK = { power = PT.SoulShards,     color = { 0.62, 0.42, 0.92 } },
-    MONK    = { power = PT.Chi,            color = { 0.42, 0.90, 0.62 } },
-    MAGE    = { power = PT.ArcaneCharges,  color = { 0.42, 0.62, 0.95 } },
-    EVOKER  = { power = PT.Essence,        color = { 0.30, 0.80, 0.75 } },
+    ROGUE       = { power = PT.ComboPoints,  color = { 0.90, 0.22, 0.30 } },
+    PALADIN     = { power = PT.HolyPower,     color = { 0.95, 0.90, 0.55 } },
+    WARLOCK     = { power = PT.SoulShards,    color = { 0.62, 0.42, 0.92 } },
+    MONK        = { power = PT.Chi,           color = { 0.42, 0.90, 0.62 } },
+    MAGE        = { power = PT.ArcaneCharges, color = { 0.42, 0.62, 0.95 } },
+    EVOKER      = { power = PT.Essence,       color = { 0.30, 0.80, 0.75 } },
+    -- Druide : points de combo, disponibles UNIQUEMENT en forme féline (UnitPowerMax = 0
+    -- sinon -> barre masquée). Le changement de forme est signalé par UPDATE_SHAPESHIFT_FORM.
+    DRUID       = { power = PT.ComboPoints,   color = { 0.95, 0.55, 0.20 }, events = { "UPDATE_SHAPESHIFT_FORM" } },
+    -- Chevalier de la mort : runes. `getValue` = compte de runes prêtes (N/6 segments),
+    -- rafraîchi par RUNE_POWER_UPDATE (les runes n'émettent pas d'UNIT_POWER classique).
+    DEATHKNIGHT = { power = PT.Runes,         color = { 0.77, 0.12, 0.23 }, events = { "RUNE_POWER_UPDATE" }, getValue = ReadyRuneCount },
 } or {}
 
 -- (Re)pose les séparateurs verticaux pour `max` segments. Placement calculé en Lua
@@ -777,7 +797,10 @@ local function UpdateClassPower(cpc)
     if cpc.preview then
         cpc.bar:SetValue(max / 2) -- aperçu : moitié des segments remplis
     else
-        cpc.bar:SetValue(UnitPower("player", cpc.powerType), SMOOTH)
+        -- Valeur : lecteur custom si défini (DK : runes prêtes via GetRuneCooldown),
+        -- sinon UnitPower (possiblement secret) passé tel quel, jamais comparé.
+        local val = cpc.getValue and cpc.getValue() or UnitPower("player", cpc.powerType)
+        cpc.bar:SetValue(val, SMOOTH)
     end
 end
 
@@ -793,6 +816,7 @@ local function CreateClassPower(f, cfg)
 
     local cpc = CreateFrame("Frame", nil, f)
     cpc.powerType = info.power
+    cpc.getValue  = info.getValue -- lecteur de valeur custom (DK : runes prêtes) ou nil
     cpc.enabled   = cfg.classpower.enabled ~= false
     cpc.width     = cfg.classpower.width or cfg.health.width
     cpc:SetSize(cpc.width, cfg.classpower.height)
@@ -809,6 +833,12 @@ local function CreateClassPower(f, cfg)
     -- Changement de spé : la ressource peut apparaître/disparaître (mage Arcane,
     -- moine WW…). Événement broadcast (sans unité) -> ré-évaluation complète.
     ns.EventBus:Register("PLAYER_SPECIALIZATION_CHANGED", function() UpdateClassPower(cpc) end)
+    -- Événements broadcast propres à la classe (forme féline du druide, runes du DK).
+    if info.events then
+        for _, ev in ipairs(info.events) do
+            ns.EventBus:Register(ev, function() UpdateClassPower(cpc) end)
+        end
+    end
 
     -- Méthode publique (référence de table, résolue au runtime) : évite le piège de
     -- portée locale depuis UpdateAll/ApplyConfig définis plus haut/plus bas.
@@ -1053,6 +1083,16 @@ local function CreateUnitFrame(unit, cfg)
     local power = CreateBar(pc, MASK_THIN, cfg.power)
     f.power = power
 
+    -- « ressource actuelle | % actuel » : centré dans la barre de ressource. Créé AVANT
+    -- ApplyMirror pour que son ancrage (valuePos) soit posé dès la création (sinon le
+    -- texte reste au centre jusqu'à la première modification d'option).
+    local powerText = power:CreateFontString(nil, "OVERLAY")
+    ApplyFont(powerText, 10, "OUTLINE")
+    powerText:SetPoint("CENTER", power, "CENTER", 0, 0)
+    powerText:SetJustifyH("CENTER")
+    powerText:SetTextColor(1, 1, 1)
+    f.powerText = powerText
+
     -- Barre d'incantation, sous la ressource.
     local castbar = CreateCastbar(f, unit, cfg)
     castbar:SetPoint("CENTER", f, "CENTER", cfg.castbar.x or 0, cfg.castbar.y or 0)
@@ -1113,14 +1153,6 @@ local function CreateUnitFrame(unit, cfg)
             self:SetPoint("CENTER", UIParent, "CENTER", c.x / sc, c.y / sc)
         end
     end)
-
-    -- « ressource actuelle | % actuel » : centré dans la barre de ressource.
-    local powerText = power:CreateFontString(nil, "OVERLAY")
-    ApplyFont(powerText, 10, "OUTLINE")
-    powerText:SetPoint("CENTER", power, "CENTER", 0, 0)
-    powerText:SetJustifyH("CENTER")
-    powerText:SetTextColor(1, 1, 1)
-    f.powerText = powerText
 
     -- Closures de % créées une fois (stables) : évitent une allocation à chaque
     -- mise à jour, et permettent de tester la disponibilité de l'API (valeur non
@@ -1484,6 +1516,13 @@ end
 function M:IsClassPowerPreview(unit)
     local f = self.frames and self.frames[unit]
     return f and f.classpower and f.classpower.preview or false
+end
+
+-- Vrai si l'unité possède réellement une barre de ressource de classe (classe gérée).
+-- Sert au menu à n'afficher l'onglet « Classe » que quand il y a quelque chose à régler.
+function M:HasClassPower(unit)
+    local f = self.frames and self.frames[unit or "player"]
+    return (f and f.classpower ~= nil) or false
 end
 
 -- Aperçu de la castbar (incantation factice).

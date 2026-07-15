@@ -4,7 +4,7 @@
 
 **Interface modulaire et légère pour World of Warcraft — sans aucune dépendance externe.**
 
-![Version](https://img.shields.io/badge/version-1.3.0-00ccff)
+![Version](https://img.shields.io/badge/version-1.4.0-00ccff)
 ![WoW](https://img.shields.io/badge/WoW-Retail-f8b700)
 ![Lua](https://img.shields.io/badge/Lua-5.1%20(WoW)-2c2d72)
 ![Licence](https://img.shields.io/badge/licence-GPL--3.0-green)
@@ -16,14 +16,14 @@
 
 BravUI n'est **pas** une refonte complète de l'interface à la ElvUI. C'est un addon **ciblé et léger**, construit sur une base **modulaire** : un petit moteur solide sur lequel viennent se greffer des modules d'interface, un par un.
 
-Cette version **1.3.0** ajoute des **indicateurs d'état** sur chaque cadre — marqueur de raid, chef/assistant de groupe, rôle, PvP et statut de combat — et corrige la **barre d'incantation**, qui s'affiche désormais correctement.
+Cette version **1.4.0** complète les **ressources de classe** avec le **Druide** (points de combo en forme féline) et le **Chevalier de la mort** (runes), et corrige quelques détails du menu.
 
 ## ✨ Caractéristiques
 
 - 🧩 **Architecture modulaire** — registre de modules avec cycle de vie (`OnInitialize` / `OnEnable` / `OnDisable`). Ajouter un module = un fichier, sans toucher au cœur.
 - 🖼️ **Unitframes complets** — Joueur, Cible, Focus et Cible-de-cible (ToT) : barre de vie, barre de ressource, castbar, textes (nom, niveau, PV, %, état).
 - 🎯 **Indicateurs d'état** — marqueur de raid, chef/assistant de groupe, rôle (tank/soin/dps), PvP et combat, affichés automatiquement autour de chaque cadre.
-- ⚔️ **Ressources de classe** — barre segmentée au-dessus de la vie du joueur (combo points, puissance sacrée, fragments d'âme, chi, charges arcaniques, essence), affichée automatiquement selon la spécialisation.
+- ⚔️ **Ressources de classe** — barre segmentée au-dessus de la vie du joueur (points de combo, puissance sacrée, fragments d'âme, chi, charges arcaniques, essence, points de combo félins du **Druide**, runes du **Chevalier de la mort**), affichée automatiquement selon la spécialisation et la forme.
 - ⚙️ **Menu de configuration par élément** — un panneau par cadre (Joueur / Cible / Focus / ToT), en sous-onglets : Position, Vie, Ressource, Classe, Incantation. Chaque barre se règle indépendamment.
 - 📝 **Textes configurables** — nom, niveau, PV et % positionnables sur 9 ancres, indépendamment pour chaque cadre.
 - 👁️ **Mode aperçu** par élément pour régler le style hors combat.
