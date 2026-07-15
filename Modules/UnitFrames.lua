@@ -308,6 +308,11 @@ local function UpdateNameLevel(f)
     -- Nom requis mais transitoirement absent (nil / "") -> on garde l'affichage.
     if showName and (not name or (not nameSecret and name == "")) then return end
 
+    -- Déblocage du rendu : un FontString peuplé pendant la fenêtre de chargement peut
+    -- rester figé invisible, et réécrire la MÊME chaîne est un no-op (aucun re-rendu).
+    -- On vide d'abord pour garantir un vrai changement d'état -> le texte se rend enfin.
+    nl:SetText("")
+
     local lvl = UnitLevel(f.unit)
     local lvlSecret = issecretvalue and issecretvalue(lvl)
     -- « || » dans un format = une seule barre « | » (échappement du FontString).
@@ -330,11 +335,16 @@ local function UpdateNameLevel(f)
     end
 end
 
+-- Déclarée ici, définie plus bas (après la fabrique d'indicateurs) : permet à
+-- UpdateAll de la référencer sans dépendre de l'ordre de définition.
+local UpdateIndicators
+
 local function UpdateAll(f)
     UpdateNameLevel(f)
     UpdateHealth(f)
     UpdatePower(f)
     if f.classpower then f.classpower.Update() end
+    if UpdateIndicators then UpdateIndicators(f) end
 end
 
 --------------------------------------------------------------------------------
@@ -349,6 +359,8 @@ local function OnUnitEvent(f, event)
         UpdatePower(f)
     elseif event == "UNIT_NAME_UPDATE" or event == "UNIT_LEVEL" then
         UpdateNameLevel(f)
+    elseif event == "UNIT_FACTION" or event == "UNIT_FLAGS" then
+        UpdateIndicators(f) -- PvP (faction) / combat (autres unités)
     elseif event == "UNIT_TARGET" then
         -- La cible a changé de cible -> la cible-de-cible désigne une autre unité.
         UpdateAll(f)
@@ -453,13 +465,31 @@ local function ApplyMirror(f, mirror)
     if f.powerText then AnchorTextTo(f.powerText, f.power, p and p.valuePos or "CENTER") end
 end
 
+-- Re-crée à neuf le FontString nom/niveau. Un FontString peuplé pendant la fenêtre de
+-- chargement peut rester "figé" invisible (cf. UpdateNameLevel) ; un FontString créé
+-- APRÈS cette fenêtre s'affiche de façon fiable. Appelé une fois, peu après l'entrée en
+-- jeu, pour garantir des noms visibles sur tous les cadres — surtout cible/focus/ToT,
+-- dont le nom n'est peuplé qu'à l'acquisition de l'unité.
+local function RebuildNameLevel(f)
+    local old = f.nameLevel
+    local nl = f.health:CreateFontString(nil, "OVERLAY")
+    ApplyFont(nl, 11, "OUTLINE")
+    nl:SetWordWrap(false)
+    nl:SetTextColor(1, 1, 1)
+    f.nameLevel = nl
+    if old then old:Hide() end
+    local uf = ns.db.unitframes[f.unit]
+    AnchorTextTo(nl, f.health, (uf and uf.health and uf.health.namePos) or "TOPLEFT")
+    UpdateNameLevel(f)
+end
+
 --------------------------------------------------------------------------------
 -- Barre d'incantation (castbar)
 -- Les timings de cast peuvent être SECRETS en 12.0 (surtout ennemis, anti-
 -- automatisation d'interruption). On ne compare/calcule JAMAIS start/end côté
 -- Lua : on les donne à SetMinMaxValues (qui accepte les secrets) et on avance la
 -- valeur en OnUpdate avec GetTime() (non secret) -> le moteur calcule le
--- remplissage. Détection du cast via castBarID (JAMAIS secret). Nom/icône
+-- remplissage. Détection du cast via le nom (1er retour), jamais comparé. Nom/icône
 -- (possiblement secrets) passés aux widgets sous garde.
 --------------------------------------------------------------------------------
 local CAST_COLOR    = { 0.90, 0.65, 0.10 } -- incantation (or)
@@ -472,18 +502,41 @@ local function CastColor(cbc, interruptible)
     cbc.bar:SetStatusBarColor(c[1], c[2], c[3])
 end
 
+-- OnUpdate de la castbar : branché UNIQUEMENT pendant un cast (voir StartCast/StopCast),
+-- donc zéro coût à l'arrêt. Le remplissage suit le temps courant (non secret) chaque
+-- frame — peu coûteux. Le texte du timer n'est reformaté qu'~10x/s : son affichage en
+-- %.1f ne change pas plus vite, inutile de faire un string.format à chaque frame.
+local function CastOnUpdate(self, elapsed)
+    -- Remplissage throttlé à ~50 fps : fluide à l'œil, mais évite les appels superflus sur
+    -- écran haute fréquence (120-144 Hz) où l'on rendrait bien plus que nécessaire.
+    self.fillAccum = (self.fillAccum or 0) + elapsed
+    if self.fillAccum >= 0.02 then
+        self.fillAccum = 0
+        self.bar:SetValue(GetTime() * 1000)
+    end
+    -- Timer : reformaté ~10x/s seulement (l'affichage %.1f ne change pas plus vite).
+    if self.secretTime or not self.endMs then return end
+    self.timerAccum = (self.timerAccum or 0) + elapsed
+    if self.timerAccum < 0.1 then return end
+    self.timerAccum = 0
+    local rem = (self.endMs - GetTime() * 1000) / 1000
+    self.timerText:SetText(string.format("%.1f", rem > 0 and rem or 0))
+end
+
 -- Démarre l'affichage d'un cast/canalisation. Renvoie true si un cast est en
--- cours, false sinon (détection via castBarID, jamais secret).
+-- cours, false sinon (détection via le nom, 1er retour, jamais comparé).
 local function StartCast(cbc, channel)
     if not cbc.enabled then return false end
     local u = cbc.unit
-    local name, disp, tex, startMs, endMs, notInt, castBarID, _
+    local name, disp, tex, startMs, endMs, notInt, _
     if channel then
-        name, disp, tex, startMs, endMs, _, notInt, _, _, _, castBarID = UnitChannelInfo(u)
+        name, disp, tex, startMs, endMs, _, notInt = UnitChannelInfo(u)
     else
-        name, disp, tex, startMs, endMs, _, _, notInt, _, castBarID = UnitCastingInfo(u)
+        name, disp, tex, startMs, endMs, _, _, notInt = UnitCastingInfo(u)
     end
-    if not castBarID then return false end
+    -- Détection secret-safe : le nom (1er retour) est nil hors incantation, présent
+    -- (ou secret) pendant. « not name » est autorisé sur un secret (coercion booléenne).
+    if not name then return false end
 
     cbc.channel = channel and true or false
     cbc.casting = true
@@ -512,12 +565,16 @@ local function StartCast(cbc, channel)
     if not pcall(cbc.nameText.SetText, cbc.nameText, disp) then cbc.nameText:SetText("") end
     pcall(cbc.icon.SetTexture, cbc.icon, tex)
 
+    cbc.timerAccum = 0
+    cbc.fillAccum = 0
+    cbc:SetScript("OnUpdate", CastOnUpdate) -- boucle active seulement pendant le cast
     cbc:Show()
     return true
 end
 
 local function StopCast(cbc)
     cbc.casting = false
+    cbc:SetScript("OnUpdate", nil) -- coupe la boucle par-frame quand il n'y a plus de cast
     cbc:Hide()
 end
 
@@ -545,6 +602,7 @@ end
 -- Aperçu : affiche une incantation factice pour régler le style hors combat.
 local function ShowCastPreview(cbc)
     cbc.casting = false
+    cbc:SetScript("OnUpdate", nil) -- aperçu figé : pas de boucle par-frame
     cbc.channel = false
     cbc.secretTime = false
     cbc.bar:SetReverseFill(cbc.reverse or false)
@@ -642,17 +700,8 @@ local function CreateCastbar(f, unit, cfg)
     for _, ev in ipairs(CAST_EVENTS) do
         pcall(cbc.RegisterUnitEvent, cbc, ev, unit) -- pcall : certains events peuvent manquer
     end
-    -- Avancement du remplissage (temps courant, non secret) + décompte du timer
-    -- (uniquement si le timing n'est PAS secret). N'est appelé que pendant un cast.
-    cbc:SetScript("OnUpdate", function(self)
-        if self.preview then return end -- aperçu figé
-        if not self.casting then return end
-        self.bar:SetValue(GetTime() * 1000)
-        if not self.secretTime and self.endMs then
-            local rem = (self.endMs - GetTime() * 1000) / 1000
-            self.timerText:SetText(string.format("%.1f", rem > 0 and rem or 0))
-        end
-    end)
+    -- L'OnUpdate (remplissage + timer) n'est branché que pendant un cast, via
+    -- StartCast/StopCast (voir CastOnUpdate) : aucune boucle par-frame à l'arrêt.
 
     cbc.Refresh = function() RefreshCast(cbc) end
     cbc:Hide()
@@ -769,6 +818,172 @@ local function CreateClassPower(f, cfg)
 end
 
 --------------------------------------------------------------------------------
+-- Indicateurs d'état (positions FIXES, non configurables)
+-- Petites icônes posées autour de la barre de vie : marqueur de raid, rôle, chef,
+-- PvP, combat. Chaque état peut être une valeur SECRÈTE en 12.0 (combat / PvP sur
+-- une cible ennemie surtout). Règle de sûreté : on ne compare/évalue JAMAIS un
+-- booléen secret (ça planterait) ; en cas de secret ou d'erreur d'API, on MASQUE
+-- l'icône. Les infos de groupe (rôle / chef) et le marqueur de raid ne sont pas
+-- tactiques, mais on les blinde de la même façon par précaution.
+--------------------------------------------------------------------------------
+local ROLE_TEX   = "Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES"
+local LEADER_TEX = "Interface\\GroupFrame\\UI-Group-LeaderIcon"
+local ASSIST_TEX = "Interface\\GroupFrame\\UI-Group-AssistantIcon"
+local PVP_H_TEX  = "Interface\\TargetingFrame\\UI-PVP-Horde"
+local PVP_A_TEX  = "Interface\\TargetingFrame\\UI-PVP-Alliance"
+local PVP_F_TEX  = "Interface\\TargetingFrame\\UI-PVP-FFA"
+local COMBAT_TEX = "Interface\\CharacterFrame\\UI-StateIcon"
+
+-- Lit un booléen d'unité en toute sécurité. Renvoie true / false, ou nil si l'API
+-- échoue OU si la valeur est SECRÈTE (on ne peut alors rien en déduire -> masquer).
+local function SafeBool(fn, unit)
+    if not fn then return nil end
+    local ok, v = pcall(fn, unit)
+    if not ok then return nil end
+    if issecretvalue and issecretvalue(v) then return nil end
+    return v and true or false
+end
+
+-- --- Mises à jour par indicateur (chacune décide Show/Hide de sa texture) --------
+-- Marqueur de raid. En 12.0, GetRaidTargetIndex renvoie une valeur SECRÈTE : on ne
+-- peut ni la comparer ni la concaténer dans un chemin de fichier. Contournement
+-- secret-safe : un FontString avec un escape texture inline « |T...Icon_%d:t|t »
+-- rempli par SetFormattedText -> le %d est substitué CÔTÉ MOTEUR (comme pour les PV),
+-- ce qui insère le bon fichier de marqueur sans jamais exposer l'index à Lua. On
+-- utilise les fichiers INDIVIDUELS UI-RaidTargetingIcon_1..8 (la grille
+-- UI-RaidTargetingIcons ne se charge plus en 12.0).
+local function UpdIndRaidMark(f, fs)
+    local idx = GetRaidTargetIndex and GetRaidTargetIndex(f.unit)
+    local secret = issecretvalue and issecretvalue(idx)
+    -- Absent (et lisible) : rien à afficher. Si secret, on ne teste PAS `not idx`
+    -- (interdit sur un secret) : on passe directement au rendu via le moteur.
+    if not secret and not idx then fs:SetText(""); fs:Hide(); return end
+    if pcall(fs.SetFormattedText, fs, fs.markFmt, idx) then
+        fs:Show()
+    else
+        fs:SetText(""); fs:Hide()
+    end
+end
+
+local function UpdIndRole(f, tex)
+    local ok, role = pcall(UnitGroupRolesAssigned, f.unit)
+    if not ok or (issecretvalue and issecretvalue(role)) then tex:Hide(); return end
+    if (role == "TANK" or role == "HEALER" or role == "DAMAGER") and GetTexCoordsForRoleSmallCircle then
+        tex:SetTexture(ROLE_TEX)
+        tex:SetTexCoord(GetTexCoordsForRoleSmallCircle(role))
+        tex:Show()
+    else
+        tex:Hide()
+    end
+end
+
+local function UpdIndLeader(f, tex)
+    if SafeBool(UnitIsGroupLeader, f.unit) then
+        tex:SetTexture(LEADER_TEX); tex:SetTexCoord(0, 1, 0, 1); tex:Show(); return
+    end
+    if SafeBool(UnitIsGroupAssistant, f.unit) then
+        tex:SetTexture(ASSIST_TEX); tex:SetTexCoord(0, 1, 0, 1); tex:Show(); return
+    end
+    tex:Hide()
+end
+
+local function UpdIndPvP(f, tex)
+    if not SafeBool(UnitIsPVP, f.unit) then tex:Hide(); return end
+    tex:SetTexCoord(0, 0.65625, 0, 0.65625) -- rogne le large padding transparent
+    if SafeBool(UnitIsPVPFreeForAll, f.unit) then
+        tex:SetTexture(PVP_F_TEX); tex:Show(); return
+    end
+    local ok, faction = pcall(UnitFactionGroup, f.unit)
+    if not ok or (issecretvalue and issecretvalue(faction)) then tex:Hide(); return end
+    if faction == "Horde" then
+        tex:SetTexture(PVP_H_TEX); tex:Show()
+    elseif faction == "Alliance" then
+        tex:SetTexture(PVP_A_TEX); tex:Show()
+    else
+        tex:Hide()
+    end
+end
+
+local function UpdIndCombat(f, tex)
+    -- Pour soi, l'info est fiable et jamais secrète ; pour les autres, elle peut
+    -- l'être (anti-automatisation) -> SafeBool masque en cas de secret.
+    local inCombat
+    if f.unit == "player" then
+        inCombat = UnitAffectingCombat("player") and true or false
+    else
+        inCombat = SafeBool(UnitAffectingCombat, f.unit)
+    end
+    if inCombat then
+        tex:SetTexture(COMBAT_TEX); tex:SetTexCoord(0.5, 1.0, 0.0, 0.49); tex:Show()
+    else
+        tex:Hide()
+    end
+end
+
+-- Description des indicateurs : point d'ancrage FIXE (relatif à la barre de vie),
+-- taille, et fonction de mise à jour. La rangée chef | marqueur | rôle se pose
+-- au-dessus de la barre ; PvP à gauche, combat à droite (hors de la barre).
+local INDICATORS = {
+    -- Chef : à gauche, au niveau du nom (coin haut-gauche extérieur).
+    { key = "leader",   size = 16, point = "RIGHT",  rel = "TOPLEFT", x = -2, y = -8, update = UpdIndLeader },
+    -- Marqueur de raid : au-dessus, centré. `text` = rendu via FontString (escape
+    -- texture inline) pour rester compatible avec l'index SECRET de la 12.0.
+    { key = "raidmark", size = 15, point = "CENTER", rel = "TOP",     x =  0, y = -11, text = true, update = UpdIndRaidMark },
+    -- Rôle : à droite, au milieu (symétrique du PvP).
+    { key = "role",     size = 16, point = "LEFT",   rel = "RIGHT",   x =  2, y =  0, update = UpdIndRole },
+    -- PvP : coin gauche DANS la barre, sous le nom.
+    { key = "pvp",      size = 24, point = "LEFT",   rel = "LEFT",    x =  2, y = -6, update = UpdIndPvP },
+    -- Combat : au centre de la barre de vie.
+    { key = "combat",   size = 30, point = "CENTER", rel = "CENTER",  x =  0, y =  0, update = UpdIndCombat },
+}
+
+-- Construit les textures d'indicateurs (enfants de la barre de vie -> suivent son
+-- échelle/position). OVERLAY sublevel élevé : au-dessus du remplissage et du texte.
+local function CreateIndicators(f)
+    -- Calque dédié au frame level élevé : garantit que les indicateurs passent
+    -- DEVANT les autres éléments qui occupent la même zone (barre de ressource de
+    -- classe au-dessus de la vie, castbar…). Enfant de la barre de vie -> suit son
+    -- échelle et sa position.
+    local layer = CreateFrame("Frame", nil, f.health)
+    layer:SetAllPoints(f.health)
+    layer:SetFrameLevel(f.health:GetFrameLevel() + 10)
+    f.indicatorLayer = layer
+
+    f.indicators = {}
+    for _, spec in ipairs(INDICATORS) do
+        local w
+        if spec.text then
+            -- FontString : porte une icône inline via un escape texture (secret-safe).
+            w = layer:CreateFontString(nil, "OVERLAY")
+            ApplyFont(w, spec.size)
+            w:SetJustifyH("CENTER")
+            -- Format pré-calculé : taille FIXE (non secrète) + %d pour l'index (secret).
+            w.markFmt = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_%d:"
+                .. spec.size .. ":" .. spec.size .. "|t"
+        else
+            w = layer:CreateTexture(nil, "OVERLAY", nil, 7)
+            w:SetSize(spec.size, spec.size)
+        end
+        w:SetPoint(spec.point, f.health, spec.rel, spec.x, spec.y)
+        w:Hide()
+        f.indicators[spec.key] = w
+    end
+end
+
+-- (déclarée en forward plus haut pour UpdateAll : pas de `local` ici)
+function UpdateIndicators(f)
+    if not f.indicators then return end
+    -- Unité absente (hors le joueur, toujours présent) : tout masquer d'un coup.
+    if f.unit ~= "player" and not UnitExists(f.unit) then
+        for _, tex in pairs(f.indicators) do tex:Hide() end
+        return
+    end
+    for _, spec in ipairs(INDICATORS) do
+        spec.update(f, f.indicators[spec.key])
+    end
+end
+
+--------------------------------------------------------------------------------
 -- Fabrique : construit un cadre d'unité complet à partir d'une config
 --------------------------------------------------------------------------------
 local function CreateUnitFrame(unit, cfg)
@@ -809,6 +1024,10 @@ local function CreateUnitFrame(unit, cfg)
     local health = CreateBar(hc, MASK, cfg.health)
     f.health = health
     UpdateHealthClickRegion(f, cfg.health) -- la zone de clic épouse la barre de vie
+
+    -- Indicateurs d'état (marqueur de raid, rôle, chef, PvP, combat) : positions
+    -- FIXES autour de la barre de vie (non configurables).
+    CreateIndicators(f)
 
     -- « Nom | Lvl » : nom en blanc, niveau en doré (dans UpdateNameLevel). Position
     -- et justification posées par ApplyMirror (selon disposition normale/inversée).
@@ -923,6 +1142,8 @@ local function CreateUnitFrame(unit, cfg)
     f:RegisterUnitEvent("UNIT_POWER_FREQUENT", unit)
     f:RegisterUnitEvent("UNIT_MAXPOWER", unit)
     f:RegisterUnitEvent("UNIT_DISPLAYPOWER", unit)
+    f:RegisterUnitEvent("UNIT_FACTION", unit) -- indicateur PvP (drapeau / faction)
+    f:RegisterUnitEvent("UNIT_FLAGS", unit)   -- indicateur de combat (autres unités)
 
     -- Certains tokens changent d'unité (ex. « target ») : un événement broadcast
     -- signale le changement -> rafraîchissement complet du cadre. RegisterUnitWatch
@@ -1093,6 +1314,22 @@ function M:OnEnable()
             local f = self.frames[unit]
             if f then UpdateAll(f) end
         end
+        -- Les FontStrings de nom créés pendant la fenêtre de chargement peuvent rester
+        -- figés invisibles : on les re-crée à neuf UNE fois, peu après l'entrée en jeu
+        -- (rendu prêt). Fiable pour TOUS les cadres, y compris cible/focus/ToT dont le
+        -- nom n'apparaît qu'à l'acquisition de l'unité. Deux passes pour couvrir les
+        -- machines plus lentes.
+        if not M.namesRebuilt then
+            M.namesRebuilt = true
+            local function rebuildAll()
+                for _, unit in ipairs(UNITS) do
+                    local f = M.frames and M.frames[unit]
+                    if f then RebuildNameLevel(f) end
+                end
+            end
+            C_Timer.After(0.1, rebuildAll)
+            C_Timer.After(1.0, rebuildAll)
+        end
     end
     ns.EventBus:Register("PLAYER_ENTERING_WORLD", self.onEnteringWorld)
 
@@ -1105,6 +1342,26 @@ function M:OnEnable()
         end
         for _, ev in ipairs({ "PLAYER_FLAGS_CHANGED", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST" }) do
             ns.EventBus:Register(ev, refreshPlayer)
+        end
+    end
+
+    -- Indicateurs d'état pilotés par des événements BROADCAST (sans unité) :
+    -- marqueur de raid, rôle, chef, et combat du JOUEUR (les autres unités passent
+    -- par UNIT_FLAGS / UNIT_FACTION). Un seul handler rafraîchit tous les cadres.
+    if not self.indicatorsHooked then
+        self.indicatorsHooked = true
+        local function refreshInd()
+            for _, unit in ipairs(UNITS) do
+                local f = self.frames[unit]
+                if f then UpdateIndicators(f) end
+            end
+        end
+        for _, ev in ipairs({
+            "RAID_TARGET_UPDATE", "PLAYER_ROLES_ASSIGNED", "GROUP_ROSTER_UPDATE",
+            "PARTY_LEADER_CHANGED", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
+            "PLAYER_FLAGS_CHANGED", -- statut PvP du joueur (expiration du timer, etc.)
+        }) do
+            ns.EventBus:Register(ev, refreshInd)
         end
     end
 end

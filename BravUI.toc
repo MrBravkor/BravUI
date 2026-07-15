@@ -1,6 +1,6 @@
 ## Interface: 120007
 ## Title: |cff00ccffBravUI|r
-## Version: 1.2.0
+## Version: 1.3.0
 ## Author: MrBravkor
 ## Notes: Interface modulaire et légère — aucune dépendance externe.
 ## Category: Interface
