@@ -27,8 +27,11 @@ function U.GetReactionColor(unit)
     if UnitIsPlayer(unit) then
         return U.GetClassColor(unit)
     end
+    -- UnitReaction peut être SECRET pour une cible en 12.0 : indexer une table avec
+    -- une clé secrète lève une erreur. On ne l'utilise que si elle est LISIBLE.
     local reaction = UnitReaction(unit, "player")
-    if reaction and FACTION_BAR_COLORS and FACTION_BAR_COLORS[reaction] then
+    if reaction and not (issecretvalue and issecretvalue(reaction))
+        and FACTION_BAR_COLORS and FACTION_BAR_COLORS[reaction] then
         local c = FACTION_BAR_COLORS[reaction]
         return c.r, c.g, c.b
     end

@@ -22,14 +22,19 @@ local U = ns.Utils
 local DEFAULTS = {
     player = {
         enabled = true,       -- affiche/masque tout le cadre
+        scale   = 1.0,        -- échelle globale du cadre (vie + ressource + classe…)
         x       = -260,       -- offset depuis le centre de l'écran
         y       = -140,
         health  = { width = 250, height = 50 },
         power   = { width = 250, height = 15, gap = 3 },
         castbar = { enabled = true, height = 18, gap = 3 },
+        -- Ressource de classe (points de combo, puissance sacrée…). Joueur
+        -- uniquement : barre segmentée AU-DESSUS de la vie (gap = espace au-dessus).
+        classpower = { enabled = true, height = 10, gap = 3 },
     },
     target = {
         enabled  = true,
+        scale    = 1.0,
         x        = 260,
         y        = -140,
         mirrored = true,      -- disposition inversée (nom à droite, remplissage <-)
@@ -37,11 +42,100 @@ local DEFAULTS = {
         power    = { width = 250, height = 15, gap = 3 },
         castbar  = { enabled = true, height = 18, gap = 3 },
     },
+    -- Focus : token « réel » (events UNIT_* + PLAYER_FOCUS_CHANGED fiables), traité
+    -- comme la cible. Même taille que joueur/cible (UI uniforme), placé au-dessus du joueur.
+    focus = {
+        enabled  = true,
+        scale    = 1.0,
+        x        = -260,
+        y        = 45,
+        health   = { width = 250, height = 50 },
+        power    = { width = 250, height = 15, gap = 3 },
+        castbar  = { enabled = true, height = 18, gap = 3 },
+    },
+    -- Cible-de-cible : token DÉRIVÉ sans event unitaire fiable -> rafraîchissement
+    -- throttlé (voir CreateUnitFrame). Même taille que les autres, castbar désactivée.
+    targettarget = {
+        enabled  = true,
+        scale    = 1.0,
+        x        = 260,
+        y        = 45,
+        mirrored = true,
+        health   = { width = 250, height = 50 },
+        power    = { width = 250, height = 15, gap = 3 },
+        castbar  = { enabled = true, height = 18, gap = 3 },
+    },
 }
+
+-- Style/placement PAR ÉLÉMENT (modèle commun : activé, échelle, offset x/y, opacité
+-- de fond, contour, bord arrondi). Ajouté ici à la barre de VIE de chaque unité
+-- (les autres éléments suivront). Défauts choisis pour reproduire le rendu actuel.
+for _, u in pairs(DEFAULTS) do
+    local h = u.health
+    h.scale  = h.scale  or 1
+    h.x      = h.x      or 0
+    h.y      = h.y      or 0
+    if h.enabled == nil then h.enabled = true end
+    if h.bgAlpha == nil then h.bgAlpha = 0.5 end -- 0 = rien, 0.5 = gris, 1 = noir
+    if h.rounded == nil then h.rounded = true end
+    -- Sens inversé + ancres texte : par défaut selon le MIROIR de l'unité (cible/ToT
+    -- -> inversé + texte à droite ; joueur/focus -> normal + texte à gauche).
+    if h.reverse == nil then h.reverse = u.mirrored == true end
+    if h.showName == nil then h.showName = true end   -- afficher le nom
+    if h.showLevel == nil then h.showLevel = true end -- afficher le niveau
+    if h.showHP == nil then h.showHP = true end       -- afficher les PV
+    if h.showPct == nil then h.showPct = true end     -- afficher le %
+    h.namePos  = h.namePos  or (u.mirrored and "TOPRIGHT" or "TOPLEFT")
+    h.valuePos = h.valuePos or (u.mirrored and "BOTTOMLEFT" or "BOTTOMRIGHT")
+
+    -- Élément RESSOURCE (même modèle). Défaut : centré sous la vie.
+    local p = u.power
+    p.scale = p.scale or 1
+    p.x = p.x or 0
+    if p.y == nil then p.y = -(u.health.height / 2 + (p.gap or 3) + p.height / 2) end
+    if p.enabled == nil then p.enabled = true end
+    if p.bgAlpha == nil then p.bgAlpha = 0.5 end
+    if p.rounded == nil then p.rounded = true end
+    if p.reverse == nil then p.reverse = u.mirrored == true end
+    if p.showVal == nil then p.showVal = true end -- afficher la valeur
+    if p.showPct == nil then p.showPct = true end -- afficher le %
+    p.valuePos = p.valuePos or "CENTER"           -- ancre valeur/% (centré par défaut)
+
+    -- Élément RESSOURCE DE CLASSE (joueur seul). Défaut : centré au-dessus de la vie.
+    local cp = u.classpower
+    if cp then
+        cp.scale = cp.scale or 1
+        cp.x = cp.x or 0
+        if cp.y == nil then cp.y = u.health.height / 2 + (cp.gap or 3) + cp.height / 2 end
+        if cp.width == nil then cp.width = u.health.width end
+        if cp.enabled == nil then cp.enabled = true end
+        if cp.bgAlpha == nil then cp.bgAlpha = 0.5 end
+        if cp.rounded == nil then cp.rounded = true end
+        if cp.reverse == nil then cp.reverse = u.mirrored == true end
+    end
+
+    -- Élément INCANTATION (castbar). Défaut : centré sous la ressource.
+    local cb = u.castbar
+    cb.scale = cb.scale or 1
+    cb.x = cb.x or 0
+    if cb.y == nil then cb.y = p.y - (p.height / 2 + (cb.gap or 3) + cb.height / 2) end
+    if cb.width == nil then cb.width = u.health.width end
+    if cb.bgAlpha == nil then cb.bgAlpha = 0.5 end
+    if cb.rounded == nil then cb.rounded = true end
+    if cb.reverse == nil then cb.reverse = u.mirrored == true end
+    if cb.showIcon == nil then cb.showIcon = true end
+    if cb.showName == nil then cb.showName = true end
+    if cb.showTimer == nil then cb.showTimer = true end
+end
 ns.Config:RegisterDefaults("unitframes", DEFAULTS)
 
 -- Unités gérées par le module, dans l'ordre de création.
-local UNITS = { "player", "target" }
+local UNITS = { "player", "target", "focus", "targettarget" }
+
+-- Libellés affichés sur l'overlay d'aide au repositionnement (mode déverrouillé).
+local UNIT_LABELS = {
+    player = "Joueur", target = "Cible", focus = "Focus", targettarget = "Cible-cible",
+}
 
 local M = ns:RegisterModule("UnitFrames")
 
@@ -99,24 +193,29 @@ end
 -- l'abrégé (AbbreviateNumbers, portée côté C en 12.0) passe par une closure sous
 -- pcall. Repli en cascade « val(k) | % » -> « val(k) » -> « val brute » -> rien.
 -- (Dans un format : « %% » = un « % », « || » = une seule barre « | ».)
-local function SetBarText(fs, cur, max, getPct)
+local function SetBarText(fs, cur, max, getPct, showVal, showPct)
+    if showVal == nil then showVal = true end
+    if showPct == nil then showPct = true end
+    if not showVal and not showPct then fs:SetText(""); return end
     local secret = issecretvalue and (issecretvalue(cur) or issecretvalue(max))
     if secret then
         local ok
-        if AbbreviateNumbers and getPct then
-            ok = pcall(function()
-                fs:SetFormattedText("%s || %d%%", AbbreviateNumbers(cur), getPct())
-            end)
-        end
-        if not ok and AbbreviateNumbers then
+        if showVal and showPct and AbbreviateNumbers and getPct then
+            ok = pcall(function() fs:SetFormattedText("%s || %d%%", AbbreviateNumbers(cur), getPct()) end)
+        elseif showPct and not showVal and getPct then
+            ok = pcall(function() fs:SetFormattedText("%d%%", getPct()) end)
+        elseif showVal and AbbreviateNumbers then
             ok = pcall(function() fs:SetFormattedText("%s", AbbreviateNumbers(cur)) end)
         end
-        if not ok and not pcall(fs.SetFormattedText, fs, "%d", cur) then
-            fs:SetText("")
+        if not ok then
+            if showVal then ok = pcall(fs.SetFormattedText, fs, "%d", cur) end
+            if not ok then fs:SetText("") end
         end
     else
         local pct = (max > 0) and math.floor(cur / max * 100 + 0.5) or 0
-        fs:SetText(U.FormatNumber(cur) .. " || " .. pct .. "%")
+        if showVal and showPct then fs:SetText(U.FormatNumber(cur) .. " || " .. pct .. "%")
+        elseif showPct then fs:SetText(pct .. "%")
+        else fs:SetText(U.FormatNumber(cur)) end
     end
 end
 
@@ -133,6 +232,14 @@ local function GetStatusText(unit)
 end
 
 local function UpdateHealth(f)
+    -- Mode APERÇU (réglage du cadre) : barre figée à 50 % pour voir le fond/contour
+    -- et ajuster le style facilement. Ignore les vraies valeurs tant qu'il est actif.
+    if f.healthPreview then
+        f.health:SetMinMaxValues(0, 1)
+        f.health:SetValue(0.5)
+        f.hpText:SetText("50%")
+        return
+    end
     local cur, max = UnitHealth(f.unit), UnitHealthMax(f.unit)
     -- Les StatusBar Blizzard acceptent nativement les valeurs secrètes : la barre
     -- fonctionne SANS aucune comparaison de notre côté.
@@ -145,7 +252,7 @@ local function UpdateHealth(f)
         f.hpText:SetText(status)
         return
     end
-    SetBarText(f.hpText, cur, max, f.getHealthPct)
+    SetBarText(f.hpText, cur, max, f.getHealthPct, f.showHP, f.showPct)
 end
 
 -- Faut-il afficher la barre de ressource ? En 12.0, UnitPowerMax est SECRET pour
@@ -161,11 +268,17 @@ local function ShouldShowPower(f)
 end
 
 local function UpdatePower(f)
-    if not ShouldShowPower(f) then
+    if f.powerEnabled == false or not ShouldShowPower(f) then
         f.powerContainer:Hide()
         return
     end
     f.powerContainer:Show()
+    -- Mode APERÇU (réglage) : barre figée à 50 %.
+    if f.powerPreview then
+        f.power:SetMinMaxValues(0, 1); f.power:SetValue(0.5)
+        f.powerText:SetText("50%")
+        return
+    end
     local cur, max = UnitPower(f.unit), UnitPowerMax(f.unit)
     f.power:SetMinMaxValues(0, max)
     f.power:SetValue(cur, SMOOTH)
@@ -173,29 +286,55 @@ local function UpdatePower(f)
     local ptype, token = UnitPowerType(f.unit)
     local c = PowerBarColor and (PowerBarColor[token] or PowerBarColor[ptype])
     if c then f.power:SetStatusBarColor(c.r, c.g, c.b) end
-    SetBarText(f.powerText, cur, max, f.getPowerPct)
+    SetBarText(f.powerText, cur, max, f.getPowerPct, f.powerShowVal, f.powerShowPct)
 end
 
--- « Nom | Lvl » regroupés dans un seul FontString (nom en blanc, niveau en
--- doré). Nom et niveau ne sont jamais secrets : concaténation libre.
+-- « Nom | Lvl » dans un seul FontString. Nom et niveau s'affichent INDÉPENDAMMENT
+-- (f.showName / f.showLevel). name et lvl peuvent être SECRETS en 12.0 : on ne
+-- concatène/compare JAMAIS un secret, on le laisse rendre par SetFormattedText
+-- (« %d »/« %s » acceptent les secrets), sous pcall.
 local function UpdateNameLevel(f)
-    local name = UnitName(f.unit)
-    -- Ne JAMAIS écraser le nom avec du vide : UnitName peut renvoyer nil de façon
-    -- transitoire (ex. au retour d'AFK, un UNIT_NAME_UPDATE peut précéder la
-    -- disponibilité du nom). On garde alors l'affichage précédent.
-    if not name or name == "" then return end
-    local lvl = UnitLevel(f.unit)
-    local lvlText = (lvl and lvl > 0) and lvl or "??"
-    -- La BARRE reste colorée par la classe / réaction ; seul le NOM passe en blanc.
+    local nl = f.nameLevel
+    local showName  = f.showName  ~= false
+    local showLevel = f.showLevel ~= false
+
+    -- La BARRE reste colorée par la classe / réaction.
     f.health:SetStatusBarColor(U.GetReactionColor(f.unit))
-    -- « || » affiche une seule barre « | » (« | » seul est un échappement).
-    f.nameLevel:SetText(name .. " || |cffffd100" .. lvlText .. "|r")
+
+    if not showName and not showLevel then nl:SetText(""); return end
+
+    local name = UnitName(f.unit)
+    local nameSecret = issecretvalue and issecretvalue(name)
+    -- Nom requis mais transitoirement absent (nil / "") -> on garde l'affichage.
+    if showName and (not name or (not nameSecret and name == "")) then return end
+
+    local lvl = UnitLevel(f.unit)
+    local lvlSecret = issecretvalue and issecretvalue(lvl)
+    -- « || » dans un format = une seule barre « | » (échappement du FontString).
+    if showName and showLevel then
+        if lvlSecret then
+            if not pcall(nl.SetFormattedText, nl, "%s || |cffffd100%d|r", name, lvl) then pcall(nl.SetText, nl, name) end
+        else
+            local lt = (lvl and lvl > 0) and lvl or "??"
+            if not pcall(nl.SetFormattedText, nl, "%s || |cffffd100%s|r", name, tostring(lt)) then pcall(nl.SetText, nl, name) end
+        end
+    elseif showName then
+        pcall(nl.SetText, nl, name)
+    else -- niveau seul
+        if lvlSecret then
+            if not pcall(nl.SetFormattedText, nl, "|cffffd100%d|r", lvl) then nl:SetText("") end
+        else
+            local lt = (lvl and lvl > 0) and lvl or "??"
+            nl:SetText("|cffffd100" .. tostring(lt) .. "|r")
+        end
+    end
 end
 
 local function UpdateAll(f)
     UpdateNameLevel(f)
     UpdateHealth(f)
     UpdatePower(f)
+    if f.classpower then f.classpower.Update() end
 end
 
 --------------------------------------------------------------------------------
@@ -210,6 +349,9 @@ local function OnUnitEvent(f, event)
         UpdatePower(f)
     elseif event == "UNIT_NAME_UPDATE" or event == "UNIT_LEVEL" then
         UpdateNameLevel(f)
+    elseif event == "UNIT_TARGET" then
+        -- La cible a changé de cible -> la cible-de-cible désigne une autre unité.
+        UpdateAll(f)
     end
 end
 
@@ -218,64 +360,97 @@ end
 -- valeurs manquantes, coins arrondis via masque. Renvoie la StatusBar. Réutilisée
 -- pour la vie et la ressource (et, plus tard, la cible).
 --------------------------------------------------------------------------------
-local function CreateBar(container, maskPath)
-    -- Fond / bordure noire couvrant tout le conteneur.
-    local bg = container:CreateTexture(nil, "BACKGROUND")
-    bg:SetTexture(FLAT)
-    bg:SetVertexColor(0, 0, 0, 1)
-    bg:SetAllPoints(container)
+-- Applique/mets à jour le STYLE d'une barre : opacité du fond + coins arrondis.
+-- (Pas de contour : incompatible proprement avec les coins arrondis.) Le fond n'a
+-- RIEN d'opaque derrière -> peut devenir réellement transparent à 0 %.
+local function StyleBar(bar, style)
+    style = style or {}
+    local bgAlpha = style.bgAlpha; if bgAlpha == nil then bgAlpha = 0.5 end
+    local rounded = style.rounded ~= false
 
-    -- Barre, encastrée de 1px -> laisse 1px de bordure noire.
+    -- Fond (portion vide) : 0 = rien (transparent), 0.5 = gris, 1 = noir.
+    local g, a
+    if bgAlpha <= 0.5 then a = bgAlpha * 2; g = 0.15
+    else a = 1; g = 0.15 * (1 - (bgAlpha - 0.5) * 2) end
+    bar.backdrop:SetVertexColor(g, g, g, a)
+
+    -- Arrondi : masque = image ronde ; carré = masque plein (FLAT = tout visible).
+    local tex = rounded and bar.maskPath or FLAT
+    bar.mask:SetTexture(tex, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+end
+
+local function CreateBar(container, maskPath, style)
+    -- Fond (portion vide) : couvre tout le conteneur, opacité réglable, RIEN d'opaque
+    -- derrière -> peut devenir transparent.
+    local backdrop = container:CreateTexture(nil, "BACKGROUND")
+    backdrop:SetTexture(FLAT)
+    backdrop:SetVertexColor(0.15, 0.15, 0.15, 1)
+    backdrop:SetAllPoints(container)
+
+    -- Barre (remplissage) : remplit le conteneur.
     local bar = CreateFrame("StatusBar", nil, container)
     bar:SetStatusBarTexture(FLAT)
     bar:GetStatusBarTexture():SetDrawLayer("ARTWORK")
-    bar:SetPoint("TOPLEFT", container, "TOPLEFT", 1, -1)
-    bar:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -1, 1)
+    bar:SetAllPoints(container)
 
-    -- Fond de la barre : portion « vide » (valeurs manquantes) en gris sombre.
-    local mbg = bar:CreateTexture(nil, "BACKGROUND")
-    mbg:SetTexture(FLAT)
-    mbg:SetVertexColor(0.15, 0.15, 0.15, 1)
-    mbg:SetAllPoints(bar)
+    -- Masque arrondi commun (fond + remplissage).
+    local mask = container:CreateMaskTexture(); mask:SetAllPoints(container)
+    backdrop:AddMaskTexture(mask)
+    bar:GetStatusBarTexture():AddMaskTexture(mask)
 
-    -- Coins arrondis : SetTexCoord ne tient pas sur une StatusBar, on masque donc
-    -- les textures (un masque pour la bordure, un pour la barre).
-    local maskB = container:CreateMaskTexture()
-    maskB:SetTexture(maskPath, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    maskB:SetAllPoints(container)
-    bg:AddMaskTexture(maskB)
-
-    local maskF = container:CreateMaskTexture()
-    maskF:SetTexture(maskPath, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    maskF:SetAllPoints(bar)
-    mbg:AddMaskTexture(maskF)
-    bar:GetStatusBarTexture():AddMaskTexture(maskF)
-
+    bar.backdrop, bar.mask = backdrop, mask
+    bar.barContainer, bar.maskPath = container, maskPath
+    StyleBar(bar, style) -- opacité + arrondi initiaux
     return bar
+end
+
+-- La ZONE DE CLIC (hit rect du cadre-bouton, taille = vie de base) suit l'élément
+-- vie : on ajuste ses marges pour coller à la barre déplacée (x/y) et mise à
+-- l'échelle (scale), sans toucher aux autres éléments (ancrés au cadre, eux fixes).
+-- Marges négatives = zone agrandie (échelle > 1). En coords locales du cadre.
+local function UpdateHealthClickRegion(f, h)
+    local hw, hh, hs = h.width, h.height, h.scale or 1
+    local hx, hy = h.x or 0, h.y or 0
+    f:SetHitRectInsets(
+        hw * (1 - hs) / 2 + hx,   -- gauche
+        hw * (1 - hs) / 2 - hx,   -- droite
+        hh * (1 - hs) / 2 - hy,   -- haut
+        hh * (1 - hs) / 2 + hy)   -- bas
 end
 
 -- Applique la disposition (normale, ou inversée « miroir » pour la cible) : sens
 -- de remplissage des barres + ancrage des textes. Extrait pour pouvoir la
 -- basculer à chaud depuis le menu d'options.
+-- Ancre du texte nom/niveau : 9 positions dans la barre de vie {point, x, y, justif}.
+local NAME_ANCHORS = {
+    TOPLEFT     = { "TOPLEFT",      8, -6, "LEFT" },
+    TOP         = { "TOP",          0, -6, "CENTER" },
+    TOPRIGHT    = { "TOPRIGHT",    -8, -6, "RIGHT" },
+    LEFT        = { "LEFT",         8,  0, "LEFT" },
+    CENTER      = { "CENTER",       0,  0, "CENTER" },
+    RIGHT       = { "RIGHT",       -8,  0, "RIGHT" },
+    BOTTOMLEFT  = { "BOTTOMLEFT",   8,  6, "LEFT" },
+    BOTTOM      = { "BOTTOM",       0,  6, "CENTER" },
+    BOTTOMRIGHT = { "BOTTOMRIGHT", -8,  6, "RIGHT" },
+}
+local function AnchorTextTo(fs, health, pos)
+    local a = NAME_ANCHORS[pos] or NAME_ANCHORS.TOPLEFT
+    fs:ClearAllPoints()
+    fs:SetPoint(a[1], health, a[1], a[2], a[3])
+    fs:SetJustifyH(a[4])
+end
+
+-- Applique l'orientation (sens de remplissage + ancres de texte). Le sens ne dépend
+-- QUE de `reverse` par élément (dont le défaut est le miroir de l'unité). Le param
+-- `mirror` est conservé pour compat mais n'est plus utilisé pour le sens.
 local function ApplyMirror(f, mirror)
-    f.health:SetReverseFill(mirror)
-    f.power:SetReverseFill(mirror)
-    local nl, hp = f.nameLevel, f.hpText
-    nl:ClearAllPoints()
-    hp:ClearAllPoints()
-    if mirror then
-        nl:SetPoint("TOPRIGHT", f.health, "TOPRIGHT", -8, -6)
-        nl:SetPoint("LEFT", f.health, "LEFT", 8, 0)
-        nl:SetJustifyH("RIGHT")
-        hp:SetPoint("BOTTOMLEFT", f.health, "BOTTOMLEFT", 8, 5)
-        hp:SetJustifyH("LEFT")
-    else
-        nl:SetPoint("TOPLEFT", f.health, "TOPLEFT", 8, -6)
-        nl:SetPoint("RIGHT", f.health, "RIGHT", -8, 0)
-        nl:SetJustifyH("LEFT")
-        hp:SetPoint("BOTTOMRIGHT", f.health, "BOTTOMRIGHT", -8, 5)
-        hp:SetJustifyH("RIGHT")
-    end
+    local uf = ns.db.unitframes[f.unit]
+    local h, p = uf.health, uf.power
+    f.health:SetReverseFill(h and h.reverse == true)
+    f.power:SetReverseFill(p and p.reverse == true)
+    AnchorTextTo(f.nameLevel, f.health, h and h.namePos or "TOPLEFT")
+    AnchorTextTo(f.hpText, f.health, h and h.valuePos or "BOTTOMRIGHT")
+    if f.powerText then AnchorTextTo(f.powerText, f.power, p and p.valuePos or "CENTER") end
 end
 
 --------------------------------------------------------------------------------
@@ -312,7 +487,7 @@ local function StartCast(cbc, channel)
 
     cbc.channel = channel and true or false
     cbc.casting = true
-    cbc.bar:SetReverseFill(cbc.channel)
+    cbc.bar:SetReverseFill(cbc.channel ~= (cbc.reverse == true)) -- canal inverse le sens, + réglage user
 
     -- Timings (possiblement secrets) -> passés tels quels au widget, jamais comparés.
     pcall(cbc.bar.SetMinMaxValues, cbc.bar, startMs, endMs)
@@ -348,9 +523,38 @@ end
 
 -- Ré-évalue l'état de cast courant (changement de cible, création).
 local function RefreshCast(cbc)
+    if cbc.preview then return end -- l'aperçu prime sur l'état réel
     if StartCast(cbc, false) then return end
     if StartCast(cbc, true) then return end
     StopCast(cbc)
+end
+
+-- Poll pour tokens dérivés sans events de cast fiables (ex. targettarget) : affiche
+-- un NOUVEAU cast, masque à la fin, mais ne réinitialise PAS un cast déjà en cours
+-- (sinon la barre sauterait au début à chaque tick).
+local function PollCast(cbc)
+    if cbc.preview or not cbc.enabled then return end
+    local casting = UnitCastingInfo(cbc.unit) or UnitChannelInfo(cbc.unit)
+    if casting then
+        if not cbc.casting then RefreshCast(cbc) end
+    elseif cbc.casting then
+        StopCast(cbc)
+    end
+end
+
+-- Aperçu : affiche une incantation factice pour régler le style hors combat.
+local function ShowCastPreview(cbc)
+    cbc.casting = false
+    cbc.channel = false
+    cbc.secretTime = false
+    cbc.bar:SetReverseFill(cbc.reverse or false)
+    cbc.bar:SetMinMaxValues(0, 1)
+    cbc.bar:SetValue(0.6)
+    CastColor(cbc, true)
+    cbc.nameText:SetText("Aperçu")
+    cbc.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    cbc.timerText:SetText("1.5")
+    cbc:Show()
 end
 
 local CAST_EVENTS = {
@@ -362,6 +566,7 @@ local CAST_EVENTS = {
 }
 
 local function OnCastEvent(cbc, event)
+    if cbc.preview then return end -- en aperçu : on ignore les vrais casts
     if event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_DELAYED" then
         StartCast(cbc, false)
     elseif event == "UNIT_SPELLCAST_CHANNEL_START" or event == "UNIT_SPELLCAST_CHANNEL_UPDATE"
@@ -376,23 +581,40 @@ local function OnCastEvent(cbc, event)
     end
 end
 
+-- Dispose icône / nom / timer selon le sens : normal = icône à gauche, timer à
+-- droite ; inversé = icône à droite, timer à gauche (nom au milieu dans les deux cas).
+local function LayoutCastInfo(cbc)
+    local bar, icon, nm, tmr = cbc.bar, cbc.icon, cbc.nameText, cbc.timerText
+    icon:ClearAllPoints(); tmr:ClearAllPoints(); nm:ClearAllPoints()
+    if cbc.reverse then
+        icon:SetPoint("RIGHT", bar, "RIGHT", -3, 0)
+        tmr:SetPoint("LEFT", bar, "LEFT", 5, 0); tmr:SetJustifyH("LEFT")
+        nm:SetPoint("RIGHT", icon, "LEFT", -5, 0)
+        nm:SetPoint("LEFT", tmr, "RIGHT", 5, 0); nm:SetJustifyH("RIGHT")
+    else
+        icon:SetPoint("LEFT", bar, "LEFT", 3, 0)
+        tmr:SetPoint("RIGHT", bar, "RIGHT", -5, 0); tmr:SetJustifyH("RIGHT")
+        nm:SetPoint("LEFT", icon, "RIGHT", 5, 0)
+        nm:SetPoint("RIGHT", tmr, "LEFT", -5, 0); nm:SetJustifyH("LEFT")
+    end
+end
+
 -- Construit la castbar (conteneur + icône + barre + nom). Position/taille en
 -- ApplyConfig. Cachée au repos, affichée pendant un cast.
 local function CreateCastbar(f, unit, cfg)
     local cbc = CreateFrame("Frame", nil, f)
     cbc.unit = unit
     cbc.enabled = cfg.castbar.enabled ~= false
-    cbc:SetSize(cfg.health.width, cfg.castbar.height)
+    cbc.reverse = cfg.castbar.reverse == true
+    cbc:SetSize(cfg.castbar.width or cfg.health.width, cfg.castbar.height)
 
-    -- Barre arrondie pleine largeur (fond + bordure + coins arrondis, comme les
-    -- autres barres). La progression du cast = son remplissage.
-    local bar = CreateBar(cbc, MASK_THIN)
+    -- Barre arrondie (même fabrique, avec style). La progression du cast = remplissage.
+    local bar = CreateBar(cbc, MASK_THIN, cfg.castbar)
     cbc.bar = bar
 
-    -- Icône du sort : petit carré légèrement arrondi, superposé à gauche.
+    -- Icône du sort : petit carré légèrement arrondi (position posée par LayoutCastInfo).
     local isz = cfg.castbar.height - 5
     local icon = bar:CreateTexture(nil, "OVERLAY")
-    icon:SetPoint("LEFT", bar, "LEFT", 3, 0)
     icon:SetSize(isz, isz)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- rogne la bordure de l'icône
     local imask = cbc:CreateMaskTexture()
@@ -401,20 +623,20 @@ local function CreateCastbar(f, unit, cfg)
     icon:AddMaskTexture(imask)
     cbc.icon = icon
 
-    -- Timer (temps restant), à droite.
+    -- Timer (temps restant).
     local tmr = bar:CreateFontString(nil, "OVERLAY")
     ApplyFont(tmr, 10, "OUTLINE")
-    tmr:SetPoint("RIGHT", bar, "RIGHT", -5, 0)
-    tmr:SetJustifyH("RIGHT"); tmr:SetTextColor(1, 1, 1)
+    tmr:SetTextColor(1, 1, 1)
     cbc.timerText = tmr
 
-    -- Nom du sort, entre l'icône et le timer.
+    -- Nom du sort (entre l'icône et le timer).
     local nm = bar:CreateFontString(nil, "OVERLAY")
     ApplyFont(nm, 10, "OUTLINE")
-    nm:SetPoint("LEFT", icon, "RIGHT", 5, 0)
-    nm:SetPoint("RIGHT", tmr, "LEFT", -5, 0)
-    nm:SetJustifyH("LEFT"); nm:SetWordWrap(false); nm:SetTextColor(1, 1, 1)
+    nm:SetWordWrap(false); nm:SetTextColor(1, 1, 1)
     cbc.nameText = nm
+
+    LayoutCastInfo(cbc) -- dispose icône/nom/timer selon le sens
+
 
     cbc:SetScript("OnEvent", OnCastEvent)
     for _, ev in ipairs(CAST_EVENTS) do
@@ -423,6 +645,7 @@ local function CreateCastbar(f, unit, cfg)
     -- Avancement du remplissage (temps courant, non secret) + décompte du timer
     -- (uniquement si le timing n'est PAS secret). N'est appelé que pendant un cast.
     cbc:SetScript("OnUpdate", function(self)
+        if self.preview then return end -- aperçu figé
         if not self.casting then return end
         self.bar:SetValue(GetTime() * 1000)
         if not self.secretTime and self.endMs then
@@ -437,6 +660,115 @@ local function CreateCastbar(f, unit, cfg)
 end
 
 --------------------------------------------------------------------------------
+-- Ressource de classe (points de combo, puissance sacrée, fragments d'âme…)
+-- Joueur uniquement. Barre SEGMENTÉE au-dessus de la vie : une seule StatusBar
+-- remplie par le moteur (SetValue accepte les valeurs secrètes) + des séparateurs
+-- verticaux posés depuis UnitPowerMax (LISIBLE pour le joueur, non restreint).
+-- Secret-safe : on ne compare/calcule JAMAIS la valeur courante, on la passe au
+-- widget ; seul UnitPowerMax (nombre de segments, lisible) sert au placement.
+--------------------------------------------------------------------------------
+local PT = Enum and Enum.PowerType
+
+-- Type de ressource + couleur par classe. La VISIBILITÉ se décide sur la lisibilité
+-- de UnitPowerMax (> 0) : gère seule les spés sans ressource (mage Feu, moine MW…).
+-- Druide (points de combo en forme féline) et Chevalier de la mort (runes =
+-- cooldown, pas des pips) sont traités dans une itération ultérieure.
+local CLASS_POWER = PT and {
+    ROGUE   = { power = PT.ComboPoints,   color = { 0.90, 0.22, 0.30 } },
+    PALADIN = { power = PT.HolyPower,      color = { 0.95, 0.90, 0.55 } },
+    WARLOCK = { power = PT.SoulShards,     color = { 0.62, 0.42, 0.92 } },
+    MONK    = { power = PT.Chi,            color = { 0.42, 0.90, 0.62 } },
+    MAGE    = { power = PT.ArcaneCharges,  color = { 0.42, 0.62, 0.95 } },
+    EVOKER  = { power = PT.Essence,        color = { 0.30, 0.80, 0.75 } },
+} or {}
+
+-- (Re)pose les séparateurs verticaux pour `max` segments. Placement calculé en Lua
+-- depuis `max` (entier LISIBLE) : aucune opération sur la valeur courante (secrète).
+local function LayoutDividers(cpc, max)
+    local w = (cpc.width or cpc:GetWidth()) -- la barre remplit tout le conteneur
+    cpc.dividers = cpc.dividers or {}
+    for i = 1, max - 1 do
+        local d = cpc.dividers[i]
+        if not d then
+            d = cpc.bar:CreateTexture(nil, "OVERLAY")
+            d:SetTexture(FLAT)
+            d:SetVertexColor(0, 0, 0, 0.9)
+            d:SetWidth(2)
+            cpc.dividers[i] = d
+        end
+        local x = w * i / max
+        d:ClearAllPoints()
+        d:SetPoint("TOP", cpc.bar, "TOPLEFT", x, 0)
+        d:SetPoint("BOTTOM", cpc.bar, "BOTTOMLEFT", x, 0)
+        d:Show()
+    end
+    -- Masque les séparateurs en trop (max a diminué : talent, changement de spé).
+    for i = max, #cpc.dividers do
+        if cpc.dividers[i] then cpc.dividers[i]:Hide() end
+    end
+end
+
+local function UpdateClassPower(cpc)
+    if not cpc.enabled then cpc:Hide(); return end
+    local max = UnitPowerMax("player", cpc.powerType)
+    -- max secret (ne devrait pas arriver pour le joueur) ou nul/absent -> pas de
+    -- ressource pour cette spé/classe -> on masque la barre.
+    if (issecretvalue and issecretvalue(max)) or not max or max <= 0 then
+        cpc:Hide()
+        return
+    end
+    cpc:Show()
+    if max ~= cpc.lastMax then
+        cpc.lastMax = max
+        LayoutDividers(cpc, max)
+    end
+    -- Valeur courante (possiblement secrète) : passée telle quelle, jamais comparée.
+    -- Le moteur remplit la barre ; les séparateurs la découpent visuellement en pips.
+    cpc.bar:SetMinMaxValues(0, max)
+    if cpc.preview then
+        cpc.bar:SetValue(max / 2) -- aperçu : moitié des segments remplis
+    else
+        cpc.bar:SetValue(UnitPower("player", cpc.powerType), SMOOTH)
+    end
+end
+
+local CLASS_POWER_EVENTS = {
+    "UNIT_POWER_FREQUENT", "UNIT_POWER_UPDATE", "UNIT_MAXPOWER", "UNIT_DISPLAYPOWER",
+}
+
+-- Construit la barre de ressource de classe (joueur). Renvoie nil si la classe n'a
+-- pas de ressource ponctuelle gérée (guerrier, chasseur, druide/DK reportés…).
+local function CreateClassPower(f, cfg)
+    local info = CLASS_POWER[f.playerClass]
+    if not info or not info.power then return nil end
+
+    local cpc = CreateFrame("Frame", nil, f)
+    cpc.powerType = info.power
+    cpc.enabled   = cfg.classpower.enabled ~= false
+    cpc.width     = cfg.classpower.width or cfg.health.width
+    cpc:SetSize(cpc.width, cfg.classpower.height)
+
+    -- Barre arrondie (même fabrique que vie/ressource, avec style).
+    local bar = CreateBar(cpc, MASK_THIN, cfg.classpower)
+    bar:SetStatusBarColor(info.color[1], info.color[2], info.color[3])
+    cpc.bar = bar
+
+    cpc:SetScript("OnEvent", function(self) UpdateClassPower(self) end)
+    for _, ev in ipairs(CLASS_POWER_EVENTS) do
+        pcall(cpc.RegisterUnitEvent, cpc, ev, "player") -- pcall : event possiblement absent
+    end
+    -- Changement de spé : la ressource peut apparaître/disparaître (mage Arcane,
+    -- moine WW…). Événement broadcast (sans unité) -> ré-évaluation complète.
+    ns.EventBus:Register("PLAYER_SPECIALIZATION_CHANGED", function() UpdateClassPower(cpc) end)
+
+    -- Méthode publique (référence de table, résolue au runtime) : évite le piège de
+    -- portée locale depuis UpdateAll/ApplyConfig définis plus haut/plus bas.
+    cpc.Update = function() UpdateClassPower(cpc) end
+    cpc:Hide()
+    return cpc
+end
+
+--------------------------------------------------------------------------------
 -- Fabrique : construit un cadre d'unité complet à partir d'une config
 --------------------------------------------------------------------------------
 local function CreateUnitFrame(unit, cfg)
@@ -444,7 +776,11 @@ local function CreateUnitFrame(unit, cfg)
     local f = CreateFrame("Button", frameName, UIParent, "SecureUnitButtonTemplate")
     f.unit = unit
     f:SetSize(cfg.health.width, cfg.health.height)
-    f:SetPoint("CENTER", UIParent, "CENTER", cfg.x, cfg.y)
+    local ufScale = cfg.scale or 1
+    f:SetScale(ufScale) -- échelle globale du cadre (vie + ressource + classe…)
+    -- Offset DIVISÉ par l'échelle : l'offset d'un SetPoint est en coordonnées locales
+    -- (donc mises à l'échelle) -> sans ça le cadre dériverait en changeant de taille.
+    f:SetPoint("CENTER", UIParent, "CENTER", cfg.x / ufScale, cfg.y / ufScale)
     f:SetClampedToScreen(true)
     f:EnableMouse(true)
 
@@ -460,9 +796,19 @@ local function CreateUnitFrame(unit, cfg)
     -- lorsque la cible sera ajoutée.
     RegisterUnitWatch(f)
 
-    -- Barre de VIE : occupe tout le cadre-bouton (zone cliquable).
-    local health = CreateBar(f, MASK)
+    -- Barre de VIE : élément INDÉPENDANT (conteneur propre centré dans le cadre-
+    -- bouton). Par défaut il remplit le cadre (offset 0, même taille) -> rendu
+    -- identique ; mais échelle/offset/style se règlent séparément. Le cadre-bouton
+    -- (f) reste la zone cliquable.
+    local hc = CreateFrame("Frame", nil, f)
+    hc:SetPoint("CENTER", f, "CENTER", cfg.health.x or 0, cfg.health.y or 0)
+    hc:SetSize(cfg.health.width, cfg.health.height)
+    hc:SetScale(cfg.health.scale or 1)
+    hc:SetShown(cfg.health.enabled ~= false)
+    f.healthContainer = hc
+    local health = CreateBar(hc, MASK, cfg.health)
     f.health = health
+    UpdateHealthClickRegion(f, cfg.health) -- la zone de clic épouse la barre de vie
 
     -- « Nom | Lvl » : nom en blanc, niveau en doré (dans UpdateNameLevel). Position
     -- et justification posées par ApplyMirror (selon disposition normale/inversée).
@@ -478,19 +824,33 @@ local function CreateUnitFrame(unit, cfg)
     hpText:SetTextColor(1, 1, 1)
     f.hpText = hpText
 
-    -- Barre de RESSOURCE : conteneur propre, LARGEUR INDÉPENDANTE, centré sous la
-    -- vie (suit la position du cadre via l'ancrage TOP au bas de la vie).
+    -- Barre de RESSOURCE : élément indépendant (conteneur propre, largeur/échelle/
+    -- position/style à lui). Défaut : centré sous la vie (offset y calculé).
     local pc = CreateFrame("Frame", nil, f)
     pc:SetSize(cfg.power.width, cfg.power.height)
-    pc:SetPoint("TOP", f, "BOTTOM", 0, -cfg.power.gap)
+    pc:SetPoint("CENTER", f, "CENTER", cfg.power.x or 0, cfg.power.y or 0)
+    pc:SetScale(cfg.power.scale or 1)
     f.powerContainer = pc
-    local power = CreateBar(pc, MASK_THIN)
+    local power = CreateBar(pc, MASK_THIN, cfg.power)
     f.power = power
 
     -- Barre d'incantation, sous la ressource.
     local castbar = CreateCastbar(f, unit, cfg)
-    castbar:SetPoint("TOP", pc, "BOTTOM", 0, -cfg.castbar.gap)
+    castbar:SetPoint("CENTER", f, "CENTER", cfg.castbar.x or 0, cfg.castbar.y or 0)
+    castbar:SetScale(cfg.castbar.scale or 1)
     f.castbar = castbar
+
+    -- Ressource de classe (joueur uniquement) : barre segmentée AU-DESSUS de la vie,
+    -- ancrage indépendant (ne perturbe pas l'empilement ressource/castbar).
+    if unit == "player" then
+        f.playerClass = select(2, UnitClass("player")) -- jeton de classe (non secret)
+        local cp = CreateClassPower(f, cfg)
+        if cp then
+            cp:SetPoint("CENTER", f, "CENTER", cfg.classpower.x or 0, cfg.classpower.y or 0)
+            cp:SetScale(cfg.classpower.scale or 1)
+            f.classpower = cp
+        end
+    end
 
     -- Disposition normale (joueur) ou inversée « miroir » (cible).
     ApplyMirror(f, cfg.mirrored == true)
@@ -506,7 +866,7 @@ local function CreateUnitFrame(unit, cfg)
     local ovTxt = ov:CreateFontString(nil, "OVERLAY")
     ApplyFont(ovTxt, 12, "OUTLINE")
     ovTxt:SetPoint("CENTER")
-    ovTxt:SetText(unit == "player" and "Joueur" or "Cible")
+    ovTxt:SetText(UNIT_LABELS[unit] or unit)
     ov:Hide()
     f.unlockOverlay = ov
 
@@ -519,13 +879,19 @@ local function CreateUnitFrame(unit, cfg)
     f:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         -- Recalcule l'offset depuis le centre de l'écran (ancrage CENTER + x/y).
+        -- INSENSIBLE À L'ÉCHELLE : on convertit les centres en pixels écran via les
+        -- échelles effectives (sinon un cadre mis à l'échelle sauverait une position
+        -- décalée), puis on repasse en coordonnées UIParent pour l'offset.
         local c = ns.db.unitframes[self.unit]
-        local ux, uy = UIParent:GetCenter()
+        local es, eu = self:GetEffectiveScale(), UIParent:GetEffectiveScale()
         local sx, sy = self:GetCenter()
+        local ux, uy = UIParent:GetCenter()
         if sx and ux then
-            c.x, c.y = math.floor(sx - ux + 0.5), math.floor(sy - uy + 0.5)
+            c.x = math.floor((sx * es - ux * eu) / eu + 0.5)
+            c.y = math.floor((sy * es - uy * eu) / eu + 0.5)
+            local sc = self:GetScale()
             self:ClearAllPoints()
-            self:SetPoint("CENTER", UIParent, "CENTER", c.x, c.y)
+            self:SetPoint("CENTER", UIParent, "CENTER", c.x / sc, c.y / sc)
         end
     end)
 
@@ -562,11 +928,31 @@ local function CreateUnitFrame(unit, cfg)
     -- signale le changement -> rafraîchissement complet du cadre. RegisterUnitWatch
     -- gère, lui, l'affichage/masquage selon l'existence de l'unité.
     local changeEvent = (unit == "target" and "PLAYER_TARGET_CHANGED")
-        or (unit == "focus" and "PLAYER_FOCUS_CHANGED") or nil
+        or (unit == "focus" and "PLAYER_FOCUS_CHANGED")
+        or (unit == "targettarget" and "PLAYER_TARGET_CHANGED") or nil
     if changeEvent then
         ns.EventBus:Register(changeEvent, function()
             UpdateAll(f)
             f.castbar.Refresh() -- la nouvelle unité peut être déjà en train d'incanter
+        end)
+    end
+
+    -- Cible-de-cible : token DÉRIVÉ sans event unitaire fiable (UNIT_HEALTH & co. ne
+    -- se déclenchent pas sur « targettarget »). On rafraîchit sur UNIT_TARGET de la
+    -- cible (elle a changé de cible) ET via un poll throttlé pour suivre la vie/
+    -- ressource. Compromis assumé (le seul cadre qui interroge en boucle, à 0,25 s).
+    if unit == "targettarget" then
+        f:RegisterUnitEvent("UNIT_TARGET", "target")
+        f.pollElapsed = 0
+        f:SetScript("OnUpdate", function(self, dt)
+            self.pollElapsed = self.pollElapsed + dt
+            if self.pollElapsed < 0.25 then return end
+            self.pollElapsed = 0
+            if self:IsShown() then
+                UpdateHealth(self)
+                UpdatePower(self)
+                PollCast(self.castbar) -- events de cast non fiables sur ce token -> poll
+            end
         end)
     end
 
@@ -581,21 +967,74 @@ end
 --------------------------------------------------------------------------------
 local function ApplyConfig(f, cfg)
     U.RunWhenSafe(function()
+        local ufScale = cfg.scale or 1
         f:ClearAllPoints()
-        f:SetPoint("CENTER", UIParent, "CENTER", cfg.x, cfg.y)
+        f:SetScale(ufScale) -- échelle globale du cadre
+        -- Offset / échelle (coords locales mises à l'échelle) -> pas de dérive.
+        f:SetPoint("CENTER", UIParent, "CENTER", cfg.x / ufScale, cfg.y / ufScale)
         f:SetSize(cfg.health.width, cfg.health.height)
+        -- Élément VIE indépendant : place/taille/échelle/activation + style (contour,
+        -- opacité de fond, arrondi), tout modifiable à chaud depuis le menu.
+        if f.healthContainer then
+            local h = cfg.health
+            f.healthContainer:ClearAllPoints()
+            f.healthContainer:SetPoint("CENTER", f, "CENTER", h.x or 0, h.y or 0)
+            f.healthContainer:SetSize(h.width, h.height)
+            f.healthContainer:SetScale(h.scale or 1)
+            f.healthContainer:SetShown(h.enabled ~= false)
+            StyleBar(f.health, h)
+            UpdateHealthClickRegion(f, h) -- la zone de clic suit la barre de vie
+            f.showName  = h.showName    -- affichage nom / niveau (repris par UpdateNameLevel)
+            f.showLevel = h.showLevel
+            f.showHP  = h.showHP        -- affichage PV / % (repris par UpdateHealth)
+            f.showPct = h.showPct
+            f.hpText:SetShown((h.showHP ~= false) or (h.showPct ~= false))
+        end
         if f.powerContainer then
+            local p = cfg.power
             f.powerContainer:ClearAllPoints()
-            f.powerContainer:SetPoint("TOP", f, "BOTTOM", 0, -cfg.power.gap)
-            f.powerContainer:SetSize(cfg.power.width, cfg.power.height)
+            f.powerContainer:SetPoint("CENTER", f, "CENTER", p.x or 0, p.y or 0)
+            f.powerContainer:SetSize(p.width, p.height)
+            f.powerContainer:SetScale(p.scale or 1)
+            StyleBar(f.power, p)
+            f.powerEnabled = p.enabled ~= false
+            f.powerShowVal = p.showVal
+            f.powerShowPct = p.showPct
         end
         if f.castbar then
+            local cb = cfg.castbar
             f.castbar:ClearAllPoints()
-            f.castbar:SetPoint("TOP", f.powerContainer, "BOTTOM", 0, -cfg.castbar.gap)
-            f.castbar:SetSize(cfg.health.width, cfg.castbar.height)
-            f.castbar.icon:SetSize(cfg.castbar.height - 5, cfg.castbar.height - 5)
-            f.castbar.enabled = cfg.castbar.enabled ~= false
-            if not f.castbar.enabled then f.castbar.casting = false; f.castbar:Hide() end
+            f.castbar:SetPoint("CENTER", f, "CENTER", cb.x or 0, cb.y or 0)
+            f.castbar:SetSize(cb.width, cb.height)
+            f.castbar:SetScale(cb.scale or 1)
+            StyleBar(f.castbar.bar, cb)
+            f.castbar.reverse = cb.reverse == true
+            LayoutCastInfo(f.castbar) -- icône/nom/timer selon le sens
+            f.castbar.icon:SetSize(cb.height - 5, cb.height - 5)
+            f.castbar.icon:SetShown(cb.showIcon ~= false)
+            f.castbar.nameText:SetShown(cb.showName ~= false)
+            f.castbar.timerText:SetShown(cb.showTimer ~= false)
+            f.castbar.enabled = cb.enabled ~= false
+            if not f.castbar.enabled then
+                f.castbar.casting = false; f.castbar.preview = false; f.castbar:Hide()
+            elseif f.castbar.preview then
+                ShowCastPreview(f.castbar)
+            else
+                f.castbar.Refresh()
+            end
+        end
+        if f.classpower then
+            local cp = cfg.classpower
+            f.classpower:ClearAllPoints()
+            f.classpower:SetPoint("CENTER", f, "CENTER", cp.x or 0, cp.y or 0)
+            f.classpower:SetSize(cp.width, cp.height)
+            f.classpower:SetScale(cp.scale or 1)
+            f.classpower.width = cp.width
+            f.classpower.enabled = cp.enabled ~= false
+            StyleBar(f.classpower.bar, cp)
+            f.classpower.bar:SetReverseFill(cp.reverse == true)
+            f.classpower.lastMax = nil -- taille/largeur changées -> replacer les séparateurs
+            f.classpower.Update()
         end
         -- Activation : masque tout le cadre si désactivé (pilotage sécurisé).
         if cfg.enabled == false then
@@ -608,10 +1047,34 @@ local function ApplyConfig(f, cfg)
 end
 
 --------------------------------------------------------------------------------
+-- Masquage des cadres Blizzard natifs remplacés par BravUI (joueur / cible / focus
+-- / ToT + castbar joueur). On désenregistre les events et on réparente vers un
+-- cadre TOUJOURS caché -> ils restent invisibles sans hook et sans risque combat
+-- (le parent masqué prime, quel que soit leur propre Show). Fait une seule fois.
+--------------------------------------------------------------------------------
+local blizzHidden
+local function HideBlizzardFrames()
+    if M.blizzHidden then return end
+    M.blizzHidden = true
+    blizzHidden = CreateFrame("Frame"); blizzHidden:Hide()
+    local function kill(fr)
+        if not fr then return end
+        fr:UnregisterAllEvents()
+        fr:Hide()
+        fr:SetParent(blizzHidden)
+    end
+    kill(PlayerFrame)
+    kill(TargetFrame)          -- inclut la ToT (TargetFrameToT) et la castbar cible
+    kill(FocusFrame)           -- inclut la castbar focus
+    kill(PlayerCastingBarFrame or CastingBarFrame) -- castbar du joueur
+end
+
+--------------------------------------------------------------------------------
 -- Cycle de vie du module
 --------------------------------------------------------------------------------
 function M:OnEnable()
     self.frames = self.frames or {}
+    U.RunWhenSafe(HideBlizzardFrames) -- cacher les cadres Blizzard (différé hors combat)
 
     for _, unit in ipairs(UNITS) do
         local f = self.frames[unit]
@@ -724,4 +1187,68 @@ end
 function M:SetEnabled(unit, enabled)
     ns.db.unitframes[unit].enabled = (enabled ~= false)
     self:RefreshAll()
+end
+
+-- APERÇU de la barre de vie (réglage du style) : fige la barre à 50 % pour voir le
+-- fond/contour. État transitoire (NON sauvegardé dans le profil).
+function M:SetHealthPreview(unit, on)
+    local f = self.frames and self.frames[unit]
+    if not f then return end
+    f.healthPreview = on and true or false
+    UpdateHealth(f)
+end
+
+function M:IsHealthPreview(unit)
+    local f = self.frames and self.frames[unit]
+    return f and f.healthPreview or false
+end
+
+-- Aperçu de la barre de ressource (fige à 50 %). État transitoire (non sauvegardé).
+function M:SetPowerPreview(unit, on)
+    local f = self.frames and self.frames[unit]
+    if not f then return end
+    f.powerPreview = on and true or false
+    UpdatePower(f)
+end
+
+function M:IsPowerPreview(unit)
+    local f = self.frames and self.frames[unit]
+    return f and f.powerPreview or false
+end
+
+-- Aperçu de la ressource de classe (fige à la moitié des segments).
+function M:SetClassPowerPreview(unit, on)
+    local f = self.frames and self.frames[unit]
+    if not f or not f.classpower then return end
+    f.classpower.preview = on and true or false
+    f.classpower.Update()
+end
+
+function M:IsClassPowerPreview(unit)
+    local f = self.frames and self.frames[unit]
+    return f and f.classpower and f.classpower.preview or false
+end
+
+-- Aperçu de la castbar (incantation factice).
+function M:SetCastbarPreview(unit, on)
+    local f = self.frames and self.frames[unit]
+    if not f or not f.castbar then return end
+    f.castbar.preview = on and true or false
+    if on then ShowCastPreview(f.castbar) else f.castbar.Refresh() end
+end
+
+function M:IsCastbarPreview(unit)
+    local f = self.frames and self.frames[unit]
+    return f and f.castbar and f.castbar.preview or false
+end
+
+-- Coupe TOUS les aperçus (ex. fermeture du menu) et restaure les vraies valeurs.
+function M:ClearPreviews()
+    if not self.frames then return end
+    for _, f in pairs(self.frames) do
+        if f.healthPreview then f.healthPreview = false; UpdateHealth(f) end
+        if f.powerPreview then f.powerPreview = false; UpdatePower(f) end
+        if f.classpower and f.classpower.preview then f.classpower.preview = false; f.classpower.Update() end
+        if f.castbar and f.castbar.preview then f.castbar.preview = false; f.castbar.Refresh() end
+    end
 end

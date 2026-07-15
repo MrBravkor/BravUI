@@ -46,7 +46,12 @@ local function CopyDefaults(dst, src)
 end
 
 local function GetCharKey()
-    local name = UnitName("player") or "Unknown"
+    -- UnitName pourrait devenir SECRET en 12.0 : impossible de concaténer un secret
+    -- (erreur runtime) et il ne ferait pas une clé de profil stable. Repli "Unknown".
+    local name = UnitName("player")
+    if not name or (issecretvalue and issecretvalue(name)) or name == "" then
+        name = "Unknown"
+    end
     local realm = GetRealmName() or "Unknown"
     return name .. " - " .. realm
 end
