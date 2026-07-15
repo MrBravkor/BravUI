@@ -121,6 +121,10 @@ SLASH_BRAV1 = "/brav"
 SlashCmdList["BRAV"] = function(input)
     input = (input or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
     local L = ns.L
+    if input == "" and ns.Options then
+        ns.Options:Toggle()  -- « /brav » sans argument ouvre le menu de configuration
+        return
+    end
     if input == "reset" then
         ns.Config:ResetActiveProfile()
         ns:Print(L["PROFILE_RESET"])

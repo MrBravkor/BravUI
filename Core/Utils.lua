@@ -41,6 +41,13 @@ end
 -- Abrège un grand nombre (1234567 -> "1.2M"). Équivalent maison de
 -- AbbreviateNumbers, pour un contrôle total du rendu.
 function U.FormatNumber(value)
+    -- Valeur « secrète » (retail 12.0+) : le moteur interdit toute comparaison
+    -- ou arithmétique dessus côté addon. Impossible de l'abréger — l'appelant
+    -- doit la passer directement à un widget (StatusBar / FontString). Filet de
+    -- sécurité pour ne jamais lever d'erreur si on nous en passe une.
+    if issecretvalue and issecretvalue(value) then
+        return "?"
+    end
     value = value or 0
     if value >= 1e9 then
         return string.format("%.1fB", value / 1e9)
